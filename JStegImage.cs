@@ -198,7 +198,7 @@ namespace Steganography
         public static int[] Quantize(int[] dctCoeffs, int tableIx)
         {
             int[] quantized = new int[8 * 8];
-            byte[] quantizationTable = JPEGWriter.QuantizationTables[tableIx];
+            byte[] quantizationTable = JPEGWriter.QuantizationTablesUnscaled[tableIx];
 
             for (int i = 0; i < 64; i++)
             {
@@ -240,7 +240,8 @@ namespace Steganography
             }
             
             // // output to stdout for now
-            //writer = new JPEGWriter(null);
+            writer = new JPEGWriter(null);
+            hfData = Array.Empty<byte>();
             
             quantized = new dctCoeffs[width, height];
             ComputeQuantization();
@@ -254,7 +255,7 @@ namespace Steganography
         public void Write()
         {
             // output to stdout for now
-            writer = new JPEGWriter(null);
+            writer = new JPEGWriter(null, hfData, 50);
 
             writer.WriteSOI();
             writer.WriteDQT();

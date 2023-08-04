@@ -17,7 +17,7 @@ namespace Steganography
 
         // Unscaled quantTables in zig-zag order. 
         // Each writer instance can set a quality value (1-100)
-        public static readonly byte[][] QuantizationTables = new byte[][]
+        public static readonly byte[][] QuantizationTablesUnscaled = new byte[][]
         {
             // Luminance - jsteg
             new byte[]{
@@ -169,7 +169,13 @@ namespace Steganography
         private byte[]? data;
         private HuffmanLookup[] huffmanLookups = new HuffmanLookup[4];
 
-        public JPEGWriter(string? path=null, byte[]? hfData=null)
+        private byte[][] QTables = new byte[2][]
+        {
+            new byte[64],
+            new byte[64]
+        };
+
+        public JPEGWriter(string? path=null, byte[]? hfData=null, int quality=100)
         {
             if (path == null)
             {
@@ -187,6 +193,33 @@ namespace Steganography
             for (int i = 0; i < 4; i++)
             {
                 huffmanLookups[i] = new HuffmanLookup(huffmanSpecs[i]);
+            }
+
+            int scale;
+            if (quality < 50)
+            {
+                scale = 5000 / quality;
+            }
+            else
+            {
+                scale = 200 - quality * 2;
+            }
+
+            for (int i = 0; i < QTables.Length; i++)
+            {
+                for (int j = 0; j < QTables[i].Length; j++)
+                {
+                    int q = (QuantizationTablesUnscaled[i][j] * scale + 50) / 100;
+                    if (q < 1)
+                    {
+                        q = 1;
+                    }
+                    else if (q > 255)
+                    {
+                        q = 255;
+                    }
+                    QTables[i][j] = (byte)q;
+                }
             }
         }
 
@@ -245,7 +278,7 @@ namespace Steganography
 
         public int WriteBlock(int[,] block, int component, int prevDC)
         {
-            int dc = (int)Math.Round(block[0, 0] / (QuantizationTables[component][0] * 2.5));
+            int dc = (int)Math.Round(block[0, 0] / (QTables[component][0] * 1.0));
             // int dc = block[0,0] / (QuantizationTables[component][0] * 2);
             //int dc = block[0,0];
             EmitHuffRLE(huffmanLookups[component * 2], dc - prevDC, 0);
@@ -256,7 +289,7 @@ namespace Steganography
             {
                 int z = unzig[zig];
                 int ac = block[z / 8, z % 8];
-                ac = (int)Math.Round(ac / (QuantizationTables[component][zig] * 2.5));
+                ac = (int)Math.Round(ac / (QTables[component][zig] * 1.0));
                 // ac /= (QuantizationTables[component][zig] * 0.5);
                 // if (component == 1 || component == 2)
                 // {
@@ -314,11 +347,11 @@ namespace Steganography
 
             // Luminance
             writer.Write((byte)0);
-            writer.Write(QuantizationTables[0]);
+            writer.Write(QTables[0]);
             
             // Chrominance
             writer.Write((byte)1);
-            writer.Write(QuantizationTables[1]);
+            writer.Write(QTables[1]);
         }
 
         public void WriteSOF0(int height, int width)
