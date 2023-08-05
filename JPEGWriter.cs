@@ -136,8 +136,9 @@ namespace Steganography
             },
         };
         
-        // unzig[i] is the index of the i'th element in zig-zag order
-        public static readonly int[] unzig = new int[]
+        // zigzagmap[i] is the index of the i'th element in zig-zag order
+        // - from natural order (line by line) to zigzag
+        public static readonly int[] ZigZagMap = new int[]
         {
             0, 1, 8, 16, 9, 2, 3, 10,
             17, 24, 32, 25, 18, 11, 4, 5,
@@ -166,7 +167,17 @@ namespace Steganography
         private uint bits;
         private int nBits;
         // hidden file data to be hidden
-        private byte[]? data;
+        public byte[]? data;
+        private int dataIdx;
+        private byte dataByteMask = 1;
+        private int capacityCounter = 0;
+
+        # region
+
+        // int datalen = 29 * 8;
+        // int datacounter = 0;
+
+        # endregion
         private HuffmanLookup[] huffmanLookups = new HuffmanLookup[4];
 
         private byte[][] QTables = new byte[2][]
@@ -175,7 +186,7 @@ namespace Steganography
             new byte[64]
         };
 
-        public JPEGWriter(string? path=null, byte[]? hfData=null, int quality=100)
+        public JPEGWriter(string? path=null, int quality=50)
         {
             if (path == null)
             {
@@ -188,28 +199,28 @@ namespace Steganography
 
             bits = 0;
             nBits = 0;
-            data = hfData;
             // initialize all huffman lookups
             for (int i = 0; i < 4; i++)
             {
                 huffmanLookups[i] = new HuffmanLookup(huffmanSpecs[i]);
             }
 
-            int scale;
-            if (quality < 50)
+            // scale quantization tables according to (provided) quality parameter (1-100)
+            if (quality < 1)
             {
-                scale = 5000 / quality;
+                quality = 1;
             }
-            else
+            else if (quality > 100)
             {
-                scale = 200 - quality * 2;
+                quality = 100;
             }
 
+            int scale = (quality < 50) ? (50 / quality) : ((100 - quality) / 50);
             for (int i = 0; i < QTables.Length; i++)
             {
                 for (int j = 0; j < QTables[i].Length; j++)
                 {
-                    int q = (QuantizationTablesUnscaled[i][j] * scale + 50) / 100;
+                    int q = (QuantizationTablesUnscaled[i][j] * scale);
                     if (q < 1)
                     {
                         q = 1;
@@ -278,27 +289,73 @@ namespace Steganography
 
         public int WriteBlock(int[,] block, int component, int prevDC)
         {
-            int dc = (int)Math.Round(block[0, 0] / (QTables[component][0] * 1.0));
-            // int dc = block[0,0] / (QuantizationTables[component][0] * 2);
-            //int dc = block[0,0];
+            int dc = (int)Math.Round(block[0, 0] / QTables[component][0] * 1.0);
+            
             EmitHuffRLE(huffmanLookups[component * 2], dc - prevDC, 0);
-            // System.Console.Write(dc - prevDC);
-            // Console.Write(block[0, 0] - prevDC + " ");
+            
             int runLength = 0;
             for (int zig = 1; zig < 64; zig++)
             {
-                int z = unzig[zig];
+                int z = ZigZagMap[zig];
                 int ac = block[z / 8, z % 8];
                 ac = (int)Math.Round(ac / (QTables[component][zig] * 1.0));
-                // ac /= (QuantizationTables[component][zig] * 0.5);
-                // if (component == 1 || component == 2)
-                // {
-                //     System.Console.Write(ac + " ");
-                // }
 
-                // {
-                //     // TODO steg
-                // }
+                
+                
+                // this is where the magic happens
+                {
+                    if ((ac < -1 || ac > 1)){
+                        capacityCounter++;
+                        // if (datacounter < datalen)
+                        // {
+                            
+                        //     // if (ac < 0)
+                        //     //     ac = -ac;
+                        //     if (datacounter % 8 == 0)
+                        //     {
+                        //         System.Console.WriteLine();
+                        //     }
+                        //     System.Console.Write(((ac & 1) == 1) ? "1" : "0");
+                        //     datacounter++;
+                        // }
+
+
+                        if (dataIdx < data!.Length)
+                        {
+                            bool neg = ac < 0;
+                            bool bit = (data[dataIdx] & dataByteMask) != 0;
+                            // if (neg)
+                            // {
+                            //     ac = -ac;
+                            // }
+                            
+                            // set last bit to 1 if bit is True, 0 if bit is False
+                            if (bit)
+                            {
+                                ac |= 1;
+                            }
+                            else
+                            {
+                                ac &= ~1;
+                            }
+                            
+                            // if (neg)
+                            // {
+                            //     ac = -ac;
+                            // }
+                            
+                            // System.Console.Write(bit ? "1" : "0");
+
+                            dataByteMask <<= 1;
+                            if (dataByteMask == 0)
+                            {
+                                dataIdx++;
+                                dataByteMask = 1;
+                                // System.Console.WriteLine();
+                            }
+                        }
+                    }
+                }
                 //Console.Write(ac + " ");
                 if (ac == 0)
                 {
@@ -450,23 +507,7 @@ namespace Steganography
             // dctCoeffs prevDC;
         }
 
-        private void Scale(int[,] dst, int[,][] src)
-        {
-            for (int i = 0; i < 4; i++)
-            {
-                int dstOff = (i&2)<<4 | (i&1)<<2;
-                for (int y = 0; y < 4; y++)
-                {
-                    for (int x = 0; x < 4; x++)
-                    {
-                        int j = 16 * y + 2 * x;
-                        // TODO
-
-                    }
-                }
-            }   
-        }
-        public void WriteSOSScanData(dctCoeffs[,] quantized)
+        public void WriteSOSScanData(dctCoeffs[,] quantized, bool writeData=true)
         {
             dctCoeffs prevDC = new dctCoeffs();
                 for (int j = 0; j < quantized.GetLength(1); j += BlockSize)
@@ -491,12 +532,19 @@ namespace Steganography
                 }
             }
             Emit(0x7F, 7);
+            // System.Console.WriteLine("\nCapacity: " + Math.Round(capacityCounter / 8000.0, 3) + " kB");
         }
         
         // write the end of image marker
         public void WriteEOI()
         {
             writer.Write(EOI);
+        }
+
+        public void FlushAndClose()
+        {
+            writer.Flush();
+            writer.Close();
         }
 
         private void WriteLengthOfMarker(int length)

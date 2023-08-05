@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Steganography
 {
-    public class LSbImage : IStegImage
+    public class LSbImage//: IStegImage
     {
         public Color[] pixels { get; private set; }
         private Bitmap coverImage;
@@ -150,10 +150,10 @@ namespace Steganography
         }
 
         // try to extract a hidden file from image
-        public static void Extract(string imgPath)
+        public void Extract(string imgPath)
         {
             // TODO we dont need to store the metadata in data array, we can just read it and use it to extract the file
-            LSbImage img = new LSbImage(imgPath);
+            //LSbImage img = new LSbImage(imgPath);
             List<byte> data = new();
             byte buffer = 0;
             byte bufferMask = 1;
@@ -164,7 +164,7 @@ namespace Steganography
             int bitsPerByte = 1;
             string fileName = "";
 
-            for (int i = 0; i < img.pixels.Length; i++)
+            for (int i = 0; i < pixels.Length; i++)
             {
                 // cycle through all color channels ARGB
                 for (int j = 0; j < 4; j++)
@@ -172,7 +172,7 @@ namespace Steganography
                     // cycle through `k` least significant bits in a byte
                     for (int k = 0; k < bitsPerByte; k++)
                     {
-                        bit = ((1 << (j * 8 + k)) & img.pixels[i].ToArgb()) != 0;
+                        bit = ((1 << (j * 8 + k)) & pixels[i].ToArgb()) != 0;
                         if (bit)
                         {
                             buffer |= bufferMask;

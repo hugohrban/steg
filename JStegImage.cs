@@ -3,12 +3,15 @@ using System.Drawing;
 
 namespace Steganography
 {
-    class JStegImage : IStegImage
+    class JStegImage //: IStegImage
     {
         # region static stuff
-        public static void Extract(string imagePath)
+        public void Extract(string imagePath)
         {
-            throw new NotImplementedException();
+            //TODO
+            // var img = new JStegImage(imagePath, "/dev/null", 50);
+        //     JStegImage img = new JStegImage(imagePath, "/dev/null", 50);
+        //     img.writer.W
         }
         public static int[,] DCT2(int[,] block)
         {
@@ -225,7 +228,7 @@ namespace Steganography
         public byte[] hfData {get; private set;}
         public int height {get; private set;}
         public int width {get; private set;}
-        public JStegImage(string imagePath)
+        public JStegImage(string imagePath, string? outImagePath=null, int quality=50)
         {
             coverImage = new Bitmap(imagePath);
             width = coverImage.Width / 8 * 8;
@@ -239,8 +242,7 @@ namespace Steganography
                 }
             }
             
-            // // output to stdout for now
-            writer = new JPEGWriter(null);
+            writer = new JPEGWriter(outImagePath, quality);
             hfData = Array.Empty<byte>();
             
             quantized = new dctCoeffs[width, height];
@@ -255,7 +257,8 @@ namespace Steganography
         public void Write()
         {
             // output to stdout for now
-            writer = new JPEGWriter(null, hfData, 50);
+            //writer = new JPEGWriter(null, hfData, 50);
+            writer.data = hfData;
 
             writer.WriteSOI();
             writer.WriteDQT();
@@ -264,6 +267,7 @@ namespace Steganography
             writer.WriteSOSHeader();
             writer.WriteSOSScanData(quantized);
             writer.WriteEOI();
+            writer.FlushAndClose();
         }
 
         private void ComputeQuantization()
