@@ -6,12 +6,12 @@ namespace Steganography
     class JStegImage //: IStegImage
     {
         # region static stuff
-        public void Extract(string imagePath)
+        public void Extract()
         {
-            //TODO
-            // var img = new JStegImage(imagePath, "/dev/null", 50);
-        //     JStegImage img = new JStegImage(imagePath, "/dev/null", 50);
-        //     img.writer.W
+            //writer.RevealFile(quantized);
+            JPEGExtractor extr = new JPEGExtractor();
+            extr.RevealFile(quantized);
+            
         }
         public static int[,] DCT2(int[,] block)
         {
@@ -223,12 +223,12 @@ namespace Steganography
         #endregion
         private Bitmap coverImage;
         private YCbCrColor[,] pixels;
-        private JPEGWriter writer;
+        //private JPEGWriter writer;
         private dctCoeffs[,] quantized;
         public byte[] hfData {get; private set;}
         public int height {get; private set;}
         public int width {get; private set;}
-        public JStegImage(string imagePath, string? outImagePath=null, int quality=50)
+        public JStegImage(string imagePath)
         {
             coverImage = new Bitmap(imagePath);
             width = coverImage.Width / 8 * 8;
@@ -242,11 +242,12 @@ namespace Steganography
                 }
             }
             
-            writer = new JPEGWriter(outImagePath, quality);
+            //writer = new JPEGWriter(outImagePath, quality);
             hfData = Array.Empty<byte>();
             
             quantized = new dctCoeffs[width, height];
             ComputeQuantization();
+            
         }
 
         public void Hide(HiddenFile hiddenFile)
@@ -254,10 +255,10 @@ namespace Steganography
             hfData = hiddenFile.data;
         }
 
-        public void Write()
+        public void Write(string? outImagePath=null)
         {
             // output to stdout for now
-            //writer = new JPEGWriter(null, hfData, 50);
+            JPEGWriter writer = new JPEGWriter(outImagePath, 50);
             writer.data = hfData;
 
             writer.WriteSOI();

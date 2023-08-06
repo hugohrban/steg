@@ -19,7 +19,7 @@ namespace Steganography
         // Each writer instance can set a quality value (1-100)
         public static readonly byte[][] QuantizationTablesUnscaled = new byte[][]
         {
-            // Luminance - jsteg
+            // Luminance
             new byte[]{
                 16, 11, 12, 14, 12, 10, 16, 14,
                 13, 14, 18, 17, 16, 19, 24, 40,
@@ -31,7 +31,7 @@ namespace Steganography
                 121, 112, 100, 120, 92, 101, 103, 99,
             },
 
-            // Chrominance - jsteg
+            // Chrominance
             new byte[]{
                 17, 18, 18, 24, 21, 24, 47, 26,
                 26, 47, 99, 66, 56, 66, 99, 99,
@@ -174,8 +174,9 @@ namespace Steganography
 
         # region
 
-        // int datalen = 29 * 8;
-        // int datacounter = 0;
+        int datalen = -1;
+        int datacounter = 0;
+        byte dato = 0;
 
         # endregion
         private HuffmanLookup[] huffmanLookups = new HuffmanLookup[4];
@@ -290,7 +291,6 @@ namespace Steganography
         public int WriteBlock(int[,] block, int component, int prevDC)
         {
             int dc = (int)Math.Round(block[0, 0] / QTables[component][0] * 1.0);
-            
             EmitHuffRLE(huffmanLookups[component * 2], dc - prevDC, 0);
             
             int runLength = 0;
@@ -301,58 +301,49 @@ namespace Steganography
                 ac = (int)Math.Round(ac / (QTables[component][zig] * 1.0));
 
                 
-                
                 // this is where the magic happens
+                
+                if ((ac < -1 || ac > 1))
                 {
-                    if ((ac < -1 || ac > 1)){
-                        capacityCounter++;
-                        // if (datacounter < datalen)
-                        // {
-                            
-                        //     // if (ac < 0)
-                        //     //     ac = -ac;
-                        //     if (datacounter % 8 == 0)
-                        //     {
-                        //         System.Console.WriteLine();
-                        //     }
-                        //     System.Console.Write(((ac & 1) == 1) ? "1" : "0");
-                        //     datacounter++;
-                        // }
+                    capacityCounter++;
+                    // if (datacounter < datalen)
+                    // {
+                        
+                    //     // if (ac < 0)
+                    //     //     ac = -ac;
+                    //     if (datacounter % 8 == 0)
+                    //     {
+                    //         System.Console.WriteLine();
+                    //     }
+                    //     System.Console.Write(((ac & 1) == 1) ? "1" : "0");
+                    //     datacounter++;
+                    // }
 
-
-                        if (dataIdx < data!.Length)
+                    if (dataIdx < data!.Length)
+                    {
+                        bool neg = ac < 0;
+                        bool bit = (data[dataIdx] & dataByteMask) != 0;
+                        // set last bit to 1 if bit is True, 0 if bit is False
+                        if (neg) ac = -ac;
+                       
+                        if (bit)
                         {
-                            bool neg = ac < 0;
-                            bool bit = (data[dataIdx] & dataByteMask) != 0;
-                            // if (neg)
-                            // {
-                            //     ac = -ac;
-                            // }
-                            
-                            // set last bit to 1 if bit is True, 0 if bit is False
-                            if (bit)
-                            {
-                                ac |= 1;
-                            }
-                            else
-                            {
-                                ac &= ~1;
-                            }
-                            
-                            // if (neg)
-                            // {
-                            //     ac = -ac;
-                            // }
-                            
-                            // System.Console.Write(bit ? "1" : "0");
-
-                            dataByteMask <<= 1;
-                            if (dataByteMask == 0)
-                            {
-                                dataIdx++;
-                                dataByteMask = 1;
-                                // System.Console.WriteLine();
-                            }
+                            ac |= 1;
+                        }
+                        else
+                        {
+                            ac &= ~1;
+                        }
+                        
+                        if (neg) ac = -ac;
+                        System.Console.Write(bit ? "1" : "0");
+                        //System.Console.Write(ac + " ");
+                        dataByteMask <<= 1;
+                        if (dataByteMask == 0)
+                        {
+                            dataIdx++;
+                            dataByteMask = 1;
+                            System.Console.WriteLine();
                         }
                     }
                 }
@@ -507,12 +498,12 @@ namespace Steganography
             // dctCoeffs prevDC;
         }
 
-        public void WriteSOSScanData(dctCoeffs[,] quantized, bool writeData=true)
+        public void WriteSOSScanData(dctCoeffs[,] quantized, bool hidingMode=true)
         {
             dctCoeffs prevDC = new dctCoeffs();
-                for (int j = 0; j < quantized.GetLength(1); j += BlockSize)
+            for (int j = 0; j < quantized.GetLength(1); j += BlockSize)
             {
-            for (int i = 0; i < quantized.GetLength(0); i += BlockSize)
+                for (int i = 0; i < quantized.GetLength(0); i += BlockSize)
                 {
                     var quantizedY = new int[BlockSize, BlockSize];
                     var quantizedCb = new int[BlockSize, BlockSize];
@@ -526,13 +517,26 @@ namespace Steganography
                             quantizedCr[k, l] = quantized[i + k, j + l].Cr;
                         }
                     }
-                    prevDC.Y = WriteBlock(quantizedY, 0, prevDC.Y);
-                    prevDC.Cb = WriteBlock(quantizedCb, 1, prevDC.Cb);
-                    prevDC.Cr = WriteBlock(quantizedCr, 1, prevDC.Cr);
+                    if (hidingMode)
+                    {
+                        prevDC.Y = WriteBlock(quantizedY, 0, prevDC.Y);
+                        prevDC.Cb = WriteBlock(quantizedCb, 1, prevDC.Cb);
+                        prevDC.Cr = WriteBlock(quantizedCr, 1, prevDC.Cr);
+                    }
+                    else
+                    {
+                        // RevealBlock(quantizedY, 0);
+                        // RevealBlock(quantizedCb, 1);
+                        // RevealBlock(quantizedCr, 1);
+                    }
                 }
             }
-            Emit(0x7F, 7);
-            // System.Console.WriteLine("\nCapacity: " + Math.Round(capacityCounter / 8000.0, 3) + " kB");
+            if (hidingMode)
+            {
+                Emit(0x7F, 7);
+            }
+
+            System.Console.WriteLine("\nCapacity: " + Math.Round(capacityCounter / 8000.0, 3) + " kB");
         }
         
         // write the end of image marker
