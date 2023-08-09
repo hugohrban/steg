@@ -2,7 +2,6 @@
 
 namespace Steganography
 {
-
     class Program
     {
         public static void Main(string[] args)
@@ -11,6 +10,7 @@ namespace Steganography
                 "The available steganography commands are:\n" +
                 "   hide [METHOD] [FILE] [INPUT_IMG] [OUTPUT_IMG]\n" +
                 "   extract [METHOD] [IMG]\n" +
+                "   capacity [METHOD] [IMG]\n" +
                 "   help [command]\n" +
                 "Use help [command] for more information about a command\n";
     
@@ -27,7 +27,11 @@ namespace Steganography
                         HiddenFile hf = new HiddenFile(args[2], StegType.JSteg);
                         JStegImage img = new JStegImage(args[3]);
                         img.Hide(hf);
-                        img.Write(args[4]);
+                        int quality = 50;
+                        if (args.Length > 5)
+                            quality = int.Parse(args[5]);
+                        img.Write(args[4], quality);
+                        
                     }
                     else if (args[1] == "lsb")
                     {
@@ -65,6 +69,13 @@ namespace Steganography
                     }
                     break;
 
+                case "compress":
+                    {
+                        JStegImage img = new JStegImage(args[1]);
+                        img.Write(args[2], int.Parse(args[3]));
+                    }
+                    break;
+
                 case "help":
                     if (args.Length < 2)
                     {
@@ -87,7 +98,8 @@ namespace Steganography
                         System.Console.WriteLine("Usage: steg extract [METHOD] [IMG]\n" +
                             "Extract a file from an image\n" +
                             "METHOD can be either `jsteg` or `lsb`\n" +
-                            "IMG is the path to the image to extract the hidden file from\n");
+                            "IMG is the path to the image to extract the hidden file from\n" +
+                            "The file will be saved in the current directory as 'extr_' + its original name.");
                     }
                     else
                     {

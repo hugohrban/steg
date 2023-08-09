@@ -257,10 +257,10 @@ namespace Steganography
             hfData = hiddenFile.data;
         }
 
-        public void Write(string? outImagePath=null)
+        public void Write(string? outImagePath=null, int quality=50)
         {
             // output to stdout for now
-            JPEGWriter writer = new JPEGWriter(outImagePath, 50);
+            JPEGWriter writer = new JPEGWriter(outImagePath, quality);
             writer.data = hfData;
 
             writer.WriteSOI();
