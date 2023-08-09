@@ -6,7 +6,6 @@ namespace Steganography
     class JPEGExtractor
     {   
         const int BlockSize = 8;
-        // int dataCounter = 0;
         int dataLength = 0;
         int extractedFileNameLength = 0;
         bool done = false;
@@ -16,7 +15,6 @@ namespace Steganography
         private BinaryReader reader;
         private byte buffer = 0;
         private int bufferLength = 0;
-        private int counter = 0;
         List<byte> data = new List<byte>();
        
         private Dictionary<int, int>[] huffmanLUT = new Dictionary<int, int>[4];
@@ -138,10 +136,13 @@ namespace Steganography
             return false;
         }
 
-
         private void WriteBit(int bit)
         {
-            if (done) return;
+            if (done) 
+            {
+                return;
+            }
+
             if (bit == 1)
             {
                 dataBuffer |= (byte)dataBufferMask;
@@ -165,7 +166,7 @@ namespace Steganography
             }
             ProcessMarker(JPEGWriter.DQT);
             ProcessMarker(JPEGWriter.SOF0);
-            GetDHT();
+            GetHuffmanTables();
             ProcessMarker(JPEGWriter.SOS);
             while (!done)
             {
@@ -173,12 +174,9 @@ namespace Steganography
                 ProcessSOSBlock(1);
                 ProcessSOSBlock(1);
             }
+            reader.Close();
+            reader.Dispose();
 
-            // print all data
-            // for (int i = 15 + extractedFileNameLength + 4; i < 19 + extractedFileNameLength + dataLength; i++)
-            // {
-            //     System.Console.Write((char)data[i]);
-            // }
             using (BinaryWriter writer = new BinaryWriter(File.Open("extr_" + extractedFileName, FileMode.Create)))
             {
                 writer.Write(data.ToArray(), 15 + extractedFileNameLength + 4, dataLength);
@@ -199,7 +197,7 @@ namespace Steganography
             reader.ReadBytes(markerLengthInt - 2);
         }
         
-        private void GetDHT()
+        private void GetHuffmanTables()
         {
             // check DHT marker
             byte[] DHT = reader.ReadBytes(2);
@@ -211,9 +209,7 @@ namespace Steganography
             // get length of DHT
             byte[] DHTLength = reader.ReadBytes(2);
             int DHTLengthInt = (DHTLength[0] << 8) | DHTLength[1] - 2;
-            
-            // read DHT
-            int bytesRead = 0;
+
             HuffmanSpec[] huffmanSpecs = new HuffmanSpec[4]
             {
                 new HuffmanSpec(),
@@ -222,6 +218,7 @@ namespace Steganography
                 new HuffmanSpec()
             };
             
+            int bytesRead = 0;
             while (bytesRead < DHTLengthInt)
             {
                 // read DHT info
@@ -238,6 +235,7 @@ namespace Steganography
                 huffmanSpecs[tableID * 2 + tableClass].count = DHTcounts;
                 huffmanSpecs[tableID * 2 + tableClass].symbol = DHTsymbols;
             }
+            // make look-up tables
             CompileHuffmanSpecs(huffmanSpecs);
         }
 
@@ -255,6 +253,7 @@ namespace Steganography
             }
             int DC = huffmanLUT[component * 2][(nBits << 24) | DCcode];
             ReadBits(DC);
+
             int ACcode = 0;
             nBits = 0;
             while (counter < 64)
@@ -268,10 +267,20 @@ namespace Steganography
                     nBits++;
                 }
                 int AC = huffmanLUT[component * 2 + 1][(nBits << 24) | ACcode];
+                
+                // end of block special code
                 if (AC == 0)
                 {
                     break;
                 }
+
+                // skip 16 zeros
+                if (AC == 0xF0)
+                {
+                    counter += 16;
+                    continue;
+                }
+
                 int run = AC >> 4;
                 int size = AC & 0xF;
                 counter += run;
@@ -279,28 +288,21 @@ namespace Steganography
                 {
                     continue;
                 }
+                
                 int value = ReadBits(size);
+                
+                // if negative, extend sign according to specifiaction
                 if (value < (1 << (size - 1)))
                 {
                     value += (-1 << size) + 1;
                 }
+
+                // if magnitude is greater than 1, there is a hidden bit
                 if (value > 1 || value < -1)
                 {
-                    //System.Console.Write(value + " ");
-                    // System.Console.Write(value & 1);
-                    this.counter++;
-                    if (this.counter == 8)
-                    {
-                        //System.Console.WriteLine();
-                        this.counter = 0;
-                    }
                     int bit = value & 1;
                     WriteBit(bit);
-                    // dataBuffer <<= 1;
-                    // dataBuffer |= (byte)(value & 1);
                 }
-                // System.Console.Write((AC & 1) == 1 ? "1" : "0");
-                //System.Console.WriteLine(AC);
                 counter++;
             }
         }
@@ -308,7 +310,6 @@ namespace Steganography
 
     public static class Extensions
     {
-        //array sum
         public static int Sum(this byte[] array)
         {
             int sum = 0;

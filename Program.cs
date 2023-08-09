@@ -86,12 +86,12 @@ namespace Steganography
                     {
                         System.Console.WriteLine("Usage: steg hide [METHOD] [FILE] [INPUT_IMG] [OUTPUT_IMG]\n" +
                             "Hide a file in an image\n" +
-                            "METHOD can be either `jsteg` or `lsb`\n" +
-                            "    `jsteg` hides the file data in the AC coefficients of the jpeg image\n" +
-                            "    `lsb` hides the file data in the least significant bits of the pixels of the image\n" +
-                            "FILE is the path to the file to be hidden\n" +
-                            "INPUT_IMG is the path to the image to hide the file in\n" +
-                            "OUTPUT_IMG is the path to the image to save the result to\n");
+                            "METHOD can be either `jsteg` or `lsb`:\n" +
+                            "    `jsteg` - hides the file data in the AC coefficients of the jpeg image\n" +
+                            "    `lsb` - hides the file data in the least significant bits of the pixels of the image\n" +
+                            "FILE       - path to the file to be hidden\n" +
+                            "INPUT_IMG  - path to the image to hide the file in\n" +
+                            "OUTPUT_IMG - path to the image to save the result to\n");
                     }
                     else if (args[1] == "extract")
                     {
@@ -107,34 +107,6 @@ namespace Steganography
                     }
                     break;
             }
-            // HiddenFile hf = new HiddenFile("steg/nt.jpg", StegType.LSbEncoding, 3);
-
-            // LSbImage lSbImage = new LSbImage("covers/clouds.jpg");
-            // lSbImage.Hide(hf);
-            // lSbImage.Write();
-
-            // LSbImage lSbImage = new LSbImage("steg/clouds.jpg");
-
-            // lSbImage.Extract("");
-
-            // // hide
-            // HiddenFile hf = new HiddenFile("abc", StegType.JSteg);
-            // JStegImage img = new JStegImage("covers/nature.jpg");
-            // img.Hide(hf);
-            // img.Write("steg/nature.jpg");
-            // // // System.Console.WriteLine("HIDE");
-            
-            // // // // reveal
-            // JStegImage imgex = new JStegImage("steg/cherry.jpg");
-            // imgex.Extract();
-
-            // JPEGExtractor jpege = new JPEGExtractor("steg/cherry.jpg");
-            // jpege.ReadFile();
-           
-            // System.Console.WriteLine("REVEAL");
-            
-
-
         }
     }
 }
