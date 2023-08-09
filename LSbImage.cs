@@ -12,12 +12,6 @@ namespace Steganography
         private int width;
         private int height;
 
-        public int[] GetCapacities()
-        {
-            // TODO calculate capacities (max size of a hidden file) for all values of bitsPerByte (1-8)
-            throw new NotImplementedException();
-        }
-
         // get all pixels from a bitmap as an array of Color objects, line by line
         private Color[] GetPixels(Bitmap bitmap)
         {
@@ -259,6 +253,7 @@ namespace Steganography
 
         public void PrintCapacity()
         {
+            System.Console.WriteLine($"Capacities for image {Path.GetFileName(imgPath)} using `lsb` method:");
             int nPixels = pixels.Length;
             int nChannels = 4;
             for (int i = 1; i <= 8; i++)

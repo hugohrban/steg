@@ -495,7 +495,9 @@ namespace Steganography
             }
             else
             {
-                System.Console.WriteLine("\nCapacity: " + Math.Round(capacityCounter / 8000.0, 3) + " kB");
+                int nBytes = capacityCounter / 8;
+                int kBytes = nBytes / 1024;
+                System.Console.WriteLine($"Capacity using `jsteg` method: {nBytes} bytes = {kBytes} kB");
             }
         }
         
