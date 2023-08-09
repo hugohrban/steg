@@ -259,33 +259,27 @@ namespace Steganography
         {
             int code = lookup.huffmanCodes[symbol];
             int nBits = code >> 24;
-            uint bits = (uint)(code & ((1 << 24) - 1));
-            Emit(bits, nBits);
+            // uint bits = (uint)(code & ((1 << 24) - 1));
+            Emit((uint)code, nBits);
+            //System.Console.WriteLine("HUFF: " + symbol + " " + nBits + " " + (code & ((1 << 24) - 1)));
         }
 
         public void EmitHuffRLE(HuffmanLookup lookup, int symbol, int runLength)
         {
             int a = symbol;
             int b = symbol;
-            if (a < 0)
+            if (symbol < 0)
             {
                 a = -symbol;
                 b = symbol - 1;
             }
             int nBits = GetBitCount(a);
-            // if (a < 0x100)
-            // {
-            //     nBits = GetBitCount(a);
-            // }
-            // else
-            // {
-            //     nBits = 8 + GetBitCount(a >> 8);
-            // }
             EmitHuff(lookup, runLength << 4 | nBits);
             if (nBits > 0)
             {
                 Emit((uint)(b & ((1 << nBits) - 1)), nBits);
             }
+            //System.Console.WriteLine("RLE: " + runLength + " " + nBits + " " + b);
         }
 
         public int WriteBlock(int[,] block, int component, int prevDC)
@@ -336,14 +330,14 @@ namespace Steganography
                         }
                         
                         if (neg) ac = -ac;
-                        System.Console.Write(bit ? "1" : "0");
+                        //System.Console.Write(bit ? "1" : "0");
                         //System.Console.Write(ac + " ");
                         dataByteMask <<= 1;
                         if (dataByteMask == 0)
                         {
                             dataIdx++;
                             dataByteMask = 1;
-                            System.Console.WriteLine();
+                            // System.Console.WriteLine();
                         }
                     }
                 }
@@ -356,6 +350,7 @@ namespace Steganography
                 {
                     while (runLength > 15)
                     {
+                        // 16 zeros special code
                         EmitHuff(huffmanLookups[component * 2 + 1], 0xF0);
                         runLength -= 16;
                     }
@@ -365,7 +360,9 @@ namespace Steganography
             }
             if (runLength > 0)
             {
+                // End of block special code
                 EmitHuff(huffmanLookups[component * 2 + 1], 0x00);
+                // System.Console.WriteLine();
             }
             //System.Console.WriteLine("\n");
             // Console.ReadLine();
@@ -493,9 +490,6 @@ namespace Steganography
             // writer.Write((byte)0); // first spectral coefficient
             // writer.Write((byte)63); // last spectral coefficient
             // writer.Write((byte)0); // successive approximation bit position
-
-            // // data
-            // dctCoeffs prevDC;
         }
 
         public void WriteSOSScanData(dctCoeffs[,] quantized, bool hidingMode=true)

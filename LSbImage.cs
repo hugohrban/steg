@@ -133,6 +133,7 @@ namespace Steganography
                 using (var writer = new BinaryWriter(stream))
                 {
                     writer.Write(data);
+                    writer.Flush();
                 }
             }
             Console.WriteLine($"Writing extracted file: {fileName} to disk");

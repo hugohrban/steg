@@ -9,8 +9,8 @@ namespace Steganography
         public void Extract()
         {
             //writer.RevealFile(quantized);
-            JPEGExtractor extr = new JPEGExtractor();
-            extr.RevealFile(quantized);
+            JPEGExtractor extr = new JPEGExtractor(imagePath);
+            extr.ReadFile();
             
         }
         public static int[,] DCT2(int[,] block)
@@ -228,6 +228,7 @@ namespace Steganography
         public byte[] hfData {get; private set;}
         public int height {get; private set;}
         public int width {get; private set;}
+        private string imagePath;
         public JStegImage(string imagePath)
         {
             coverImage = new Bitmap(imagePath);
@@ -241,7 +242,7 @@ namespace Steganography
                     pixels[i,j] = RGBtoYCbCr(coverImage.GetPixel(j, i));
                 }
             }
-            
+            this.imagePath = imagePath;
             //writer = new JPEGWriter(outImagePath, quality);
             hfData = Array.Empty<byte>();
             
