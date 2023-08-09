@@ -3,7 +3,7 @@ using System.Drawing;
 
 namespace Steganography
 {
-    class JStegImage //: IStegImage
+    public class JStegImage //: IStegImage
     {
         # region static stuff
         public void Extract()
@@ -13,7 +13,7 @@ namespace Steganography
             extr.ReadFile();
             
         }
-        public static int[,] DCT2(int[,] block)
+        public static int[] DCT2(int[] block)
         {
             // int[,] block = new int[8,8];
             // for (int i = 0; i < 8; i++)
@@ -35,12 +35,12 @@ namespace Steganography
                 }
             }
 
-            if (block.GetLength(0) != 8 || block.GetLength(1) != 8)
-            {
-                throw new ArgumentException("Block must be 8x8");
-            }
+            // if (block.GetLength(0) != 8 || block.GetLength(1) != 8)
+            // {
+            //     throw new ArgumentException("Block must be 8x8");
+            // }
 
-            int[,] dct = new int[8, 8];
+            int[] dct = new int[8 * 8];
 
             for (int u = 0; u < 8; u++)
             {
@@ -51,10 +51,10 @@ namespace Steganography
                     {
                         for (int y = 0; y < 8; y++)
                         {
-                            sum += block[x, y] * Math.Cos((2 * x + 1) * u * Math.PI / 16) * Math.Cos((2 * y + 1) * v * Math.PI / 16);
+                            sum += block[x * 8 + y] * Math.Cos((2 * x + 1) * u * Math.PI / 16) * Math.Cos((2 * y + 1) * v * Math.PI / 16);
                         }
                     }
-                    dct[u, v] = (int)Math.Round((0.25 * alpha(u) * alpha(v) * sum));
+                    dct[u * 8 + v] = (int)Math.Round((0.25 * alpha(u) * alpha(v) * sum));
                 }
             }
             // return Flatten(dct);
@@ -183,6 +183,7 @@ namespace Steganography
             }
             return b;
         }
+        
         public static int[] Flatten(int[,] arr)
         {
             int height = arr.GetLength(0);
@@ -242,13 +243,13 @@ namespace Steganography
                     pixels[i,j] = RGBtoYCbCr(coverImage.GetPixel(j, i));
                 }
             }
+            coverImage.Dispose();
             this.imagePath = imagePath;
-            //writer = new JPEGWriter(outImagePath, quality);
+
             hfData = Array.Empty<byte>();
             
             quantized = new dctCoeffs[width, height];
             ComputeQuantization();
-            
         }
 
         public void Hide(HiddenFile hiddenFile)
@@ -284,20 +285,25 @@ namespace Steganography
             }
         }
 
+        public void PrintCapacity()
+        {
+            JPEGWriter writer = new JPEGWriter(null, 50);
+            writer.WriteSOSScanData(quantized, false);
+        }
         private void GetDCTCoeffs(int x, int y)
         {
-            int[,] shiftedY = new int[8, 8];
-            int[,] shiftedCb = new int[8, 8];
-            int[,] shiftedCr = new int[8, 8];
+            int[] shiftedY  = new int[8 * 8];
+            int[] shiftedCb = new int[8 * 8];
+            int[] shiftedCr = new int[8 * 8];
 
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < 8; j++)
                 {
-                    shiftedY[i, j]  = (pixels[y + i, x + j].Y - 128);
+                    shiftedY[i * 8 + j]  = (pixels[y + i, x + j].Y - 128);
                     //System.Console.Write(pixels[y + i, x + j].Cb + " ");
-                    shiftedCb[i, j] = (pixels[y + i, x + j].Cb - 128);
-                    shiftedCr[i, j] = (pixels[y + i, x + j].Cr - 128);
+                    shiftedCb[i * 8 + j] = (pixels[y + i, x + j].Cb - 128);
+                    shiftedCr[i * 8 + j] = (pixels[y + i, x + j].Cr - 128);
                 }
             }
             //System.Console.WriteLine("\n");
@@ -319,9 +325,9 @@ namespace Steganography
             // int[] dctCb = fdct(Flatten(shiftedCb));
             // int[] dctCr = fdct(Flatten(shiftedCr));
 
-            int[] dctY  = Flatten(DCT2(shiftedY));
-            int[] dctCb = Flatten(DCT2(shiftedCb));
-            int[] dctCr = Flatten(DCT2(shiftedCr));
+            int[] dctY  = DCT2(shiftedY);
+            int[] dctCb = DCT2(shiftedCb);
+            int[] dctCr = DCT2(shiftedCr);
 
             for (int i = 0; i < 8; i++)
             {

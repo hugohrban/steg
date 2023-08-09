@@ -128,7 +128,7 @@ namespace Steganography
         /// </summary>
         private static void WriteExtractedFile(byte[] data, string fileName)
         {
-            using (var stream = File.Open("extr/" + fileName, FileMode.Create))
+            using (var stream = File.Open("extr_" + fileName, FileMode.Create))
             {
                 using (var writer = new BinaryWriter(stream))
                 {
@@ -136,7 +136,7 @@ namespace Steganography
                     writer.Flush();
                 }
             }
-            Console.WriteLine($"Writing extracted file: {fileName} to disk");
+            Console.WriteLine($"Writing extracted file: {fileName} to disk. Saved as extr_{fileName}");
         }
 
         // Convert file name from byte array to string
@@ -151,7 +151,7 @@ namespace Steganography
         }
 
         // try to extract a hidden file from image
-        public void Extract(string imgPath)
+        public void Extract()
         {
             // TODO we dont need to store the metadata in data array, we can just read it and use it to extract the file
             //LSbImage img = new LSbImage(imgPath);

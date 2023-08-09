@@ -7,12 +7,12 @@ namespace Steganography
     class JPEGWriter
     {
         # region static fields and methods
-        static readonly byte[] SOI = { 0xFF, 0xD8 };
-        static readonly byte[] DQT = { 0xFF, 0xDB };
-        static readonly byte[] DHT = { 0xFF, 0xC4 };
-        static readonly byte[] SOF0 = { 0xFF, 0xC0 };
-        static readonly byte[] SOS = { 0xFF, 0xDA };
-        static readonly byte[] EOI = { 0xFF, 0xD9 };
+        public static readonly byte[] SOI = { 0xFF, 0xD8 };
+        public static readonly byte[] DQT = { 0xFF, 0xDB };
+        public static readonly byte[] DHT = { 0xFF, 0xC4 };
+        public static readonly byte[] SOF0 = { 0xFF, 0xC0 };
+        public static readonly byte[] SOS = { 0xFF, 0xDA };
+        public static readonly byte[] EOI = { 0xFF, 0xD9 };
         const int BlockSize = 8;
 
         // Unscaled quantTables in zig-zag order. 
@@ -174,9 +174,9 @@ namespace Steganography
 
         # region
 
-        int datalen = -1;
-        int datacounter = 0;
-        byte dato = 0;
+        // int datalen = -1;
+        // int datacounter = 0;
+        // byte dato = 0;
 
         # endregion
         private HuffmanLookup[] huffmanLookups = new HuffmanLookup[4];
@@ -282,10 +282,11 @@ namespace Steganography
             //System.Console.WriteLine("RLE: " + runLength + " " + nBits + " " + b);
         }
 
-        public int WriteBlock(int[,] block, int component, int prevDC)
+        public int WriteBlock(int[,] block, int component, int prevDC, bool writingMode=true)
         {
             int dc = (int)Math.Round(block[0, 0] / QTables[component][0] * 1.0);
-            EmitHuffRLE(huffmanLookups[component * 2], dc - prevDC, 0);
+            if (writingMode)
+                EmitHuffRLE(huffmanLookups[component * 2], dc - prevDC, 0);
             
             int runLength = 0;
             for (int zig = 1; zig < 64; zig++)
@@ -294,54 +295,43 @@ namespace Steganography
                 int ac = block[z / 8, z % 8];
                 ac = (int)Math.Round(ac / (QTables[component][zig] * 1.0));
 
+                if (!writingMode)
+                {
+                    if (ac < -1 || ac > 1)
+                    {
+                        capacityCounter++;
+                    }
+                    continue;
+                }
                 
                 // this is where the magic happens
-                
                 if ((ac < -1 || ac > 1))
                 {
-                    capacityCounter++;
-                    // if (datacounter < datalen)
-                    // {
-                        
-                    //     // if (ac < 0)
-                    //     //     ac = -ac;
-                    //     if (datacounter % 8 == 0)
-                    //     {
-                    //         System.Console.WriteLine();
-                    //     }
-                    //     System.Console.Write(((ac & 1) == 1) ? "1" : "0");
-                    //     datacounter++;
-                    // }
-
                     if (dataIdx < data!.Length)
                     {
                         bool neg = ac < 0;
                         bool bit = (data[dataIdx] & dataByteMask) != 0;
-                        // set last bit to 1 if bit is True, 0 if bit is False
-                        if (neg) ac = -ac;
+                        if (neg) 
+                            ac = -ac;
                        
+                        // set last bit to 1 if bit is True, 0 if bit is False
                         if (bit)
-                        {
                             ac |= 1;
-                        }
                         else
-                        {
                             ac &= ~1;
-                        }
-                        
-                        if (neg) ac = -ac;
-                        //System.Console.Write(bit ? "1" : "0");
-                        //System.Console.Write(ac + " ");
+
+                        if (neg) 
+                            ac = -ac;
+
                         dataByteMask <<= 1;
                         if (dataByteMask == 0)
                         {
                             dataIdx++;
                             dataByteMask = 1;
-                            // System.Console.WriteLine();
                         }
                     }
                 }
-                //Console.Write(ac + " ");
+
                 if (ac == 0)
                 {
                     runLength++;
@@ -360,12 +350,9 @@ namespace Steganography
             }
             if (runLength > 0)
             {
-                // End of block special code
+                // End of block special huffman code
                 EmitHuff(huffmanLookups[component * 2 + 1], 0x00);
-                // System.Console.WriteLine();
             }
-            //System.Console.WriteLine("\n");
-            // Console.ReadLine();
             return dc;
         }
 
@@ -492,7 +479,7 @@ namespace Steganography
             // writer.Write((byte)0); // successive approximation bit position
         }
 
-        public void WriteSOSScanData(dctCoeffs[,] quantized, bool hidingMode=true)
+        public void WriteSOSScanData(dctCoeffs[,] quantized, bool writingMode=true)
         {
             dctCoeffs prevDC = new dctCoeffs();
             for (int j = 0; j < quantized.GetLength(1); j += BlockSize)
@@ -511,26 +498,27 @@ namespace Steganography
                             quantizedCr[k, l] = quantized[i + k, j + l].Cr;
                         }
                     }
-                    if (hidingMode)
-                    {
-                        prevDC.Y = WriteBlock(quantizedY, 0, prevDC.Y);
-                        prevDC.Cb = WriteBlock(quantizedCb, 1, prevDC.Cb);
-                        prevDC.Cr = WriteBlock(quantizedCr, 1, prevDC.Cr);
-                    }
-                    else
-                    {
-                        // RevealBlock(quantizedY, 0);
-                        // RevealBlock(quantizedCb, 1);
-                        // RevealBlock(quantizedCr, 1);
-                    }
+                   
+                        prevDC.Y  = WriteBlock(quantizedY, 0, prevDC.Y, writingMode);
+                        prevDC.Cb = WriteBlock(quantizedCb, 1, prevDC.Cb, writingMode);
+                        prevDC.Cr = WriteBlock(quantizedCr, 1, prevDC.Cr, writingMode);
+                    // }
+                    // else
+                    // {
+                    //     WriteBlock(quantizedY, 0, 0, false);
+                    //     WriteBlock(quantizedCb, 1, 0, false);
+                    //     WriteBlock(quantizedCr, 1, 0, false);
+                    // }
                 }
             }
-            if (hidingMode)
+            if (writingMode)
             {
                 Emit(0x7F, 7);
             }
-
-            System.Console.WriteLine("\nCapacity: " + Math.Round(capacityCounter / 8000.0, 3) + " kB");
+            else
+            {
+                System.Console.WriteLine("\nCapacity: " + Math.Round(capacityCounter / 8000.0, 3) + " kB");
+            }
         }
         
         // write the end of image marker
