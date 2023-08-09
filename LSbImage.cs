@@ -8,8 +8,9 @@ namespace Steganography
     public class LSbImage//: IStegImage
     {
         public Color[] pixels { get; private set; }
-        private Bitmap coverImage;
         private string imgPath;
+        private int width;
+        private int height;
 
         public int[] GetCapacities()
         {
@@ -33,16 +34,19 @@ namespace Steganography
 
         public LSbImage(string imgPath)
         {
-            coverImage = new Bitmap(imgPath);
+            Bitmap coverImage = new Bitmap(imgPath);
             this.imgPath = imgPath;
             this.pixels = GetPixels(coverImage);
+            this.width = coverImage.Width;
+            this.height = coverImage.Height;
+            coverImage.Dispose();
         }
 
         // write the image to disk. Call this method after hiding a file in the image.
         public void Write()
         {
             System.Console.WriteLine("Writing LSb-steg image to disk...");
-            Bitmap stegImage = new Bitmap(coverImage.Width, coverImage.Height);
+            Bitmap stegImage = new Bitmap(width, height);
             for (int i = 0; i < pixels.Length; i++)
             {
                 int x = i % stegImage.Width;
@@ -250,6 +254,19 @@ namespace Steganography
                         }
                     }
                 }
+            }
+        }
+
+        public void PrintCapacity()
+        {
+            int nPixels = pixels.Length;
+            int nChannels = 4;
+            for (int i = 1; i <= 8; i++)
+            {
+                int nBits = nPixels * nChannels * i;
+                int nBytes = nBits / 8;
+                int nKBytes = nBytes / 1024;
+                Console.WriteLine($"bitsPerByte: {i}, capacity: {nBits} bits = {nBytes} B = {nKBytes} kB");
             }
         }
     }

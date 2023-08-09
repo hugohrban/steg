@@ -60,7 +60,8 @@ namespace Steganography
                     }
                     else if (args[1] == "lsb")
                     {
-                        // TODO
+                        LSbImage lsb = new LSbImage(args[2]);
+                        lsb.PrintCapacity();
                     }
                     break;
 

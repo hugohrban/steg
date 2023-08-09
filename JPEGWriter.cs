@@ -164,23 +164,19 @@ namespace Steganography
         # endregion
 
         private BinaryWriter writer;
+        // bits to be written to the stream
         private uint bits;
+        // number of bits in bits
         private int nBits;
         // hidden file data to be hidden
         public byte[]? data;
         private int dataIdx;
         private byte dataByteMask = 1;
+        // number of non-zero-or-one AC coefficients = number of bits that can be hidden
         private int capacityCounter = 0;
-
-        # region
-
-        // int datalen = -1;
-        // int datacounter = 0;
-        // byte dato = 0;
-
-        # endregion
         private HuffmanLookup[] huffmanLookups = new HuffmanLookup[4];
 
+        // scaled quantization tables in zig-zag order
         private byte[][] QTables = new byte[2][]
         {
             new byte[64],
@@ -255,6 +251,7 @@ namespace Steganography
             }
         }
 
+        // write the huffman code for a given symbol to the stream
         public void EmitHuff(HuffmanLookup lookup, int symbol)
         {
             int code = lookup.huffmanCodes[symbol];
@@ -264,6 +261,7 @@ namespace Steganography
             //System.Console.WriteLine("HUFF: " + symbol + " " + nBits + " " + (code & ((1 << 24) - 1)));
         }
 
+        // write the huffman code for a run of `runLength` zeros and the number of bits of the next symbol and the symbol itself
         public void EmitHuffRLE(HuffmanLookup lookup, int symbol, int runLength)
         {
             int a = symbol;
@@ -279,7 +277,6 @@ namespace Steganography
             {
                 Emit((uint)(b & ((1 << nBits) - 1)), nBits);
             }
-            //System.Console.WriteLine("RLE: " + runLength + " " + nBits + " " + b);
         }
 
         public int WriteBlock(int[,] block, int component, int prevDC, bool writingMode=true)
@@ -295,6 +292,7 @@ namespace Steganography
                 int ac = block[z / 8, z % 8];
                 ac = (int)Math.Round(ac / (QTables[component][zig] * 1.0));
 
+                // capacity estimation
                 if (!writingMode)
                 {
                     if (ac < -1 || ac > 1)
@@ -362,20 +360,13 @@ namespace Steganography
             writer.Write(SOI);
         }
 
-        // write the define quantization table marker and the quantization tables in zig-zag order
+        // write the define quantization table marker and the scaled quantization tables in zig-zag order
         public void WriteDQT()
         {
             writer.Write(DQT);
             
             ushort lengthDQT = 2 + 2 * (64 + 1);
             WriteLengthOfMarker(lengthDQT);
-
-            // grey
-            // WriteLengthOfMarker(2 + 1 + 64);
-
-            // // grey chrom
-            // writer.Write((byte)0);
-            // writer.Write(QuantizationTables[0]);
 
             // Luminance
             writer.Write((byte)0);
@@ -421,6 +412,7 @@ namespace Steganography
 
         }
 
+        // write the define huffman table marker and the huffman tables
         public void WriteDHT()
         {
             // 0 L  DC -> 00
@@ -447,9 +439,9 @@ namespace Steganography
             }
         }
 
+        // start of scan header
         public void WriteSOSHeader()
         {
-            // // header stuff
             writer.Write(SOS);
             int length = 6 + 2 * 3;
             WriteLengthOfMarker(length);
@@ -466,19 +458,9 @@ namespace Steganography
             writer.Write((byte)0); // first spectral coefficient
             writer.Write((byte)63); // last spectral coefficient
             writer.Write((byte)0); // successive approximation bit position
-
-
-            // greyscale
-            // writer.Write(SOS);
-            // WriteLengthOfMarker(6 + 2);
-            // writer.Write((byte)1); // 1 component
-            // writer.Write((byte)1); // Y
-            // writer.Write((byte)0x11); // DC = 0, AC = 0
-            // writer.Write((byte)0); // first spectral coefficient
-            // writer.Write((byte)63); // last spectral coefficient
-            // writer.Write((byte)0); // successive approximation bit position
         }
 
+        // huffman-coded scan data or capacity estimation
         public void WriteSOSScanData(dctCoeffs[,] quantized, bool writingMode=true)
         {
             dctCoeffs prevDC = new dctCoeffs();
@@ -498,21 +480,17 @@ namespace Steganography
                             quantizedCr[k, l] = quantized[i + k, j + l].Cr;
                         }
                     }
-                   
-                        prevDC.Y  = WriteBlock(quantizedY, 0, prevDC.Y, writingMode);
-                        prevDC.Cb = WriteBlock(quantizedCb, 1, prevDC.Cb, writingMode);
-                        prevDC.Cr = WriteBlock(quantizedCr, 1, prevDC.Cr, writingMode);
-                    // }
-                    // else
-                    // {
-                    //     WriteBlock(quantizedY, 0, 0, false);
-                    //     WriteBlock(quantizedCb, 1, 0, false);
-                    //     WriteBlock(quantizedCr, 1, 0, false);
-                    // }
+                    prevDC.Y  = WriteBlock(quantizedY, 0, prevDC.Y, writingMode);
+                    prevDC.Cb = WriteBlock(quantizedCb, 1, prevDC.Cb, writingMode);
+                    prevDC.Cr = WriteBlock(quantizedCr, 1, prevDC.Cr, writingMode);
                 }
             }
             if (writingMode)
             {
+                if (dataIdx < data!.Length)
+                {
+                    throw new Exception("Not enough capacity to hide the file. Try using a larger image or a smaller file.");
+                }
                 Emit(0x7F, 7);
             }
             else
@@ -531,6 +509,7 @@ namespace Steganography
         {
             writer.Flush();
             writer.Close();
+            writer.Dispose();
         }
 
         private void WriteLengthOfMarker(int length)
