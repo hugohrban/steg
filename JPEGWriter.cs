@@ -164,6 +164,8 @@ namespace Steganography
         # endregion
 
         private BinaryWriter writer;
+        // jpeg quality of compression (1-100), 1 being lowest quality = highest compression ratio
+        private int quality;
         // bits to be written to the stream
         private uint bits;
         // number of bits in bits
@@ -211,13 +213,14 @@ namespace Steganography
             {
                 quality = 100;
             }
+            this.quality = quality;
 
-            int scale = (quality < 50) ? (50 / quality) : ((100 - quality) / 50);
+            double scale = (quality < 50) ? (50.0 / quality) : ((100 - quality) / 50.0);
             for (int i = 0; i < QTables.Length; i++)
             {
                 for (int j = 0; j < QTables[i].Length; j++)
                 {
-                    int q = (QuantizationTablesUnscaled[i][j] * scale);
+                    int q = (int)Math.Round(QuantizationTablesUnscaled[i][j] * scale);
                     if (q < 1)
                     {
                         q = 1;
@@ -281,7 +284,7 @@ namespace Steganography
 
         public int WriteBlock(int[,] block, int component, int prevDC, bool writingMode=true)
         {
-            int dc = (int)Math.Round(block[0, 0] / QTables[component][0] * 1.0);
+            int dc = (int)Math.Round(block[0, 0] / (QTables[component][0] * 1.0));
             if (writingMode)
                 EmitHuffRLE(huffmanLookups[component * 2], dc - prevDC, 0);
             
@@ -497,7 +500,7 @@ namespace Steganography
             {
                 int nBytes = capacityCounter / 8;
                 int kBytes = nBytes / 1024;
-                System.Console.WriteLine($"Capacity using `jsteg` method: {nBytes} bytes = {kBytes} kB");
+                System.Console.WriteLine($"Capacity using `jsteg` method with Q = {quality}: {nBytes} bytes = {kBytes} kB");
             }
         }
         
