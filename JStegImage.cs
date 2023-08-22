@@ -4,16 +4,19 @@ using System.Threading.Tasks;
 
 namespace Steganography
 {
-    public class JStegImage //: IStegImage
+    public class JStegImage : IStegImage
     {
         # region static stuff
 
-        public void Extract()
+        /// <summary>
+        /// Extracts a file from a jpeg image file. The file must have been embedded in the image using the `jsteg` method.
+        /// This method creates an instance of JPEGExtractor and calls its ReadFile method.
+        /// </summary>
+        /// <param name="imagePath"></param>
+        public static void Extract(string imagePath)
         {
-            //writer.RevealFile(quantized);
-            JPEGExtractor extr = new JPEGExtractor(imagePath);
-            extr.ReadFile();
-            
+            JPEGExtractor extractor = new JPEGExtractor(imagePath);
+            extractor.ReadFile();
         }
         public static int[] DCT2(int[] block)
         {
@@ -179,6 +182,7 @@ namespace Steganography
         }
 
         #endregion
+
         private YCbCrColor[,] pixels;
         //private JPEGWriter writer;
         private dctCoeffs[,] quantized;
@@ -187,13 +191,14 @@ namespace Steganography
         public int width {get; private set;}
         private string imagePath;
         private const int blockSize = 8;
+        private int quality;
 
         /// <summary>
         /// Creates a JStegImage object from a jpeg image file and computes DCT coefficients of the image,
         /// which are used in the jpeg encoding process and can be used to hide data in the image.
         /// </summary>
         /// <param name="imagePath"></param>
-        public JStegImage(string imagePath)
+        public JStegImage(string imagePath, int quality=50)
         {
             using (Bitmap coverImage = new Bitmap(imagePath))
             {            
@@ -208,30 +213,82 @@ namespace Steganography
                     }
                 }
             }
-            this.imagePath = imagePath;
-
-            hfData = Array.Empty<byte>();
             
+            this.imagePath = imagePath;
+            hfData = Array.Empty<byte>();
+            this.quality = quality;
+
             quantized = new dctCoeffs[width, height];
             ComputeQuantizationParallel();
         }
 
         /// <summary>
-        /// Hide a file in the image. The file will be embedded in the image when it is written to a file
-        /// and can be extracted from the image later.
+        /// Hide a file in the image and save the result as a new jpg image.
         /// </summary>
         /// <param name="hiddenFile"></param>
-        public void Hide(HiddenFile hiddenFile)
+        public void Hide(string filePath)
         {
+            HiddenFile hiddenFile = new HiddenFile(filePath);
             hfData = hiddenFile.data;
+            string stegImagePath = "steg_" + Path.GetFileName(imagePath);
+            Write(stegImagePath);
         }
 
+        /// <summary>
+        /// Prints the capacity of the image for different quality factors from 100 to 5, with step 5.
+        /// Computation is performed in parallel.
+        /// </summary>
+        public void PrintCapacity()
+        {
+            // we create a write for each quality setting and call the WriteSOSScanData method with 
+            // the quantized coefficients, and writeMode set to false, so that the writer doesn't actually write anything
+            // after "writing" we get the capacity from the writer's capacityCounter field
+            int[] capacitiesBits = new int[20];
+            Parallel.For(0, 20, i => {
+                JPEGWriter writer = new JPEGWriter(null, 100 - i * 5);
+                writer.WriteSOSScanData(quantized, false);
+                capacitiesBits[i] = writer.capacityCounter;
+                writer.FlushAndClose();
+                writer.Dispose();
+            });
+
+            for (int i = 0; i < 20; i++)
+            {
+                int Q = 100 - i * 5;
+                int capacityB = capacitiesBits[i] / 8;
+                int capacityKB = capacityB / 1024;
+                Console.WriteLine($"Capacity using `jsteg` method with Q={Q}: {capacityB} B = {capacityKB} KB");
+            }
+            
+            // synchronous version
+            // JPEGWriter writer;    
+            // for (int Q = 100; Q > 0; Q -= 5)
+            // {
+            //     writer = new JPEGWriter(null, Q);
+            //     writer.WriteSOSScanData(quantized, false);
+            //     int capacityB = writer.capacityCounter / 8;
+            //     int capacityKB = capacityB / 1024;
+            //     Console.WriteLine($"Capacity using `jsteg` method with Q={Q}: {capacityB} B = {capacityKB} KB");
+            // }
+        }
+
+        /// <summary>
+        /// Compress the image and save the result as a new jpg image. 
+        /// The quality setting is chosen when creating the JStegImage object.
+        /// </summary>
+        /// <param name="outImagePath"></param>
+        public void Compress(string outImagePath)
+        {
+            // this method is just a wrapper around the Write method, 
+            // so that users don't call Write directly by accident, since .Hide() does it already
+            Write(outImagePath);
+        }
         /// <summary>
         /// Write the image to a jpg file. If no path is specified, the image will be written to stdout.
         /// </summary>
         /// <param name="outImagePath"></param>
         /// <param name="quality">JPEG compression quality setting (from 1 to 100) </param>
-        public void Write(string? outImagePath=null, int quality=50)
+        private void Write(string? outImagePath=null)
         {
             JPEGWriter writer = new JPEGWriter(outImagePath, quality);
             writer.data = hfData;
@@ -281,44 +338,6 @@ namespace Steganography
                     GetDCTCoeffs(x, y);
                 }
             });
-        }
-
-        /// <summary>
-        /// Prints the capacity of the image for different quality factors from 100 to 5, with step 5.
-        /// Computation is performed in parallel.
-        /// </summary>
-        public void PrintCapacity()
-        {
-            // we create a write for each quality setting and call the WriteSOSScanData method with 
-            // the quantized coefficients, and writeMode set to false, so that the writer doesn't actually write anything
-            // after "writing" we get the capacity from the writer's capacityCounter field
-            int[] capacitiesBits = new int[20];
-            Parallel.For(0, 20, i => {
-                JPEGWriter writer = new JPEGWriter(null, 100 - i * 5);
-                writer.WriteSOSScanData(quantized, false);
-                capacitiesBits[i] = writer.capacityCounter;
-                writer.FlushAndClose();
-                writer.Dispose();
-            });
-
-            for (int i = 0; i < 20; i++)
-            {
-                int Q = 100 - i * 5;
-                int capacityB = capacitiesBits[i] / 8;
-                int capacityKB = capacityB / 1024;
-                Console.WriteLine($"Capacity using `jsteg` method with Q={Q}: {capacityB} B = {capacityKB} KB");
-            }
-            
-            // synchronous version
-            // JPEGWriter writer;    
-            // for (int Q = 100; Q > 0; Q -= 5)
-            // {
-            //     writer = new JPEGWriter(null, Q);
-            //     writer.WriteSOSScanData(quantized, false);
-            //     int capacityB = writer.capacityCounter / 8;
-            //     int capacityKB = capacityB / 1024;
-            //     Console.WriteLine($"Capacity using `jsteg` method with Q={Q}: {capacityB} B = {capacityKB} KB");
-            // }
         }
         
         /// <summary>

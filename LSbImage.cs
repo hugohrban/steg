@@ -5,64 +5,28 @@ using System.Text;
 
 namespace Steganography
 {
-    public class LSbImage//: IStegImage
+    public class LSbImage : IStegImage
     {
         public Color[] pixels { get; private set; }
         private string imgPath;
         private int width;
         private int height;
-
-        /// <summary>
-        /// Get all pixels from a bitmap as an array of Color objects, line by line
-        /// </summary>
-        private Color[] GetPixels(Bitmap bitmap)
-        {
-            Color[] pixels = new Color[bitmap.Width * bitmap.Height];
-            for (int i = 0; i < bitmap.Height; i++)
-            {
-                for (int j = 0; j < bitmap.Width; j++)
-                {
-                    pixels[i * bitmap.Width + j] = bitmap.GetPixel(j, i);
-                }
-            }
-            return pixels;
-        }
+        private int bitsPerByte;
 
         /// <summary>
         /// Representation of an image bitmap. Reads the image from disk and stores it in an array of Color objects.
         /// </summary>
         /// <param name="imgPath"></param>
-        public LSbImage(string imgPath)
+        public LSbImage(string imgPath, int bitsPerByte=1)
         {
-            Bitmap coverImage = new Bitmap(imgPath);
-            this.imgPath = Path.GetFileName(imgPath);
-            this.pixels = GetPixels(coverImage);
-            this.width = coverImage.Width;
-            this.height = coverImage.Height;
-            coverImage.Dispose();
-        }
-        
-        /// <summary>
-        /// Write the image to disk. This method should be called after hiding a file in the image using .Hide() method.
-        /// </summary>
-        public void Write()
-        {
-            System.Console.WriteLine("Writing LSb-steg image to disk...");
-            Bitmap stegImage = new Bitmap(width, height);
-            for (int i = 0; i < pixels.Length; i++)
+            using (Bitmap coverImage = new Bitmap(imgPath))
             {
-                int x = i % stegImage.Width;
-                int y = i / stegImage.Width;
-                stegImage.SetPixel(x, y, pixels[i]);
+                this.imgPath = Path.GetFileName(imgPath);
+                this.pixels = GetPixels(coverImage);
+                this.width = coverImage.Width;
+                this.height = coverImage.Height;
+                this.bitsPerByte = bitsPerByte;
             }
-            string imgName = Path.GetFileNameWithoutExtension(imgPath);
-            stegImage.Save("steg_" + imgName + ".png", ImageFormat.Png);
-            System.Console.WriteLine($"Writing done. Image saved as steg_{imgName}.png");
-        }
-
-        private void HideArray(byte[] arr, int bitsPerByte)
-        {
-            // TODO multithreading when hiding and bitsPerByte == 1
         }
 
         /// <summary>
@@ -70,8 +34,10 @@ namespace Steganography
         /// </summary>
         /// <param name="hf"></param>
         /// <exception cref="InvalidDataException"></exception>
-        public void Hide(HiddenFile hf)
+        public void Hide(string filePath)
         {
+            HiddenFile hf = new HiddenFile(filePath, bitsPerByte);
+
             int bufferMask = 1;
             int dataIx = 0;
             byte buffer = hf.data[dataIx];
@@ -131,6 +97,63 @@ namespace Steganography
                 throw new InvalidDataException("The image is too small to be able to contain the hidden file. Try higher bitsPerByte value or a larger image.");
             }
             System.Console.WriteLine("Hiding done.");
+            Write();
+        }
+
+        /// <summary>
+        /// Print the capacity of the image in bytes and kilobytes for different values of bitsPerByte.
+        /// </summary>
+        public void PrintCapacity()
+        {
+            System.Console.WriteLine($"Capacities for image {Path.GetFileName(imgPath)} using `lsb` method:");
+            int nPixels = pixels.Length;
+            int nChannels = 4;
+            for (int i = 1; i <= 8; i++)
+            {
+                int nBits = nPixels * nChannels * i;
+                int nBytes = nBits / 8;
+                int nKBytes = nBytes / 1024;
+                Console.WriteLine($"bitsPerByte: {i}, capacity: {nBits} bits = {nBytes} B = {nKBytes} kB");
+            }
+        }
+
+        /// <summary>
+        /// Get all pixels from a bitmap as an array of Color objects, line by line
+        /// </summary>
+        private Color[] GetPixels(Bitmap bitmap)
+        {
+            Color[] pixels = new Color[bitmap.Width * bitmap.Height];
+            for (int i = 0; i < bitmap.Height; i++)
+            {
+                for (int j = 0; j < bitmap.Width; j++)
+                {
+                    pixels[i * bitmap.Width + j] = bitmap.GetPixel(j, i);
+                }
+            }
+            return pixels;
+        }
+
+        /// <summary>
+        /// Write the image to disk. This method is called after hiding a file in the image using .Hide() method.
+        /// </summary>
+        private void Write()
+        {
+            System.Console.WriteLine("Writing LSb-steg image to disk...");
+            Bitmap stegImage = new Bitmap(width, height);
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                int x = i % stegImage.Width;
+                int y = i / stegImage.Width;
+                stegImage.SetPixel(x, y, pixels[i]);
+            }
+            string imgName = Path.GetFileNameWithoutExtension(imgPath);
+            stegImage.Save("steg_" + imgName + ".png", ImageFormat.Png);
+            System.Console.WriteLine($"Writing done. Image saved as steg_{imgName}.png");
+        }
+
+        private void HideArray(byte[] arr, int bitsPerByte)
+        {
+            // TODO multithreading when hiding and bitsPerByte == 1
         }
 
         /// <summary>
@@ -149,37 +172,28 @@ namespace Steganography
             Console.WriteLine($"Writing extracted file: {fileName} to disk. Saved as extr_{fileName}");
         }
 
-        // Convert file name from byte array to string
-        public static string GetString(byte[] ch)
-        {
-            char[] chars = new char[ch.Length / 2];
-            for (int i = 0; i < ch.Length; i+=2)
-            {
-                chars[i / 2] = (char)((ch[i] << 8) | ch[i + 1]);
-            }
-            return new string(chars);
-        }
-
         /// <summary>
         /// Try to extract a hidden file from image and save it with its original name prepended with "extr_".
         /// Throws an exception if the image does not contain a hidden file.
         /// </summary>
         /// <exception cref="Exception"></exception>
-        public void Extract()
+        public static void Extract(string imagePath)
         {
             // TODO we dont need to store the metadata in data array, we can just read it and use it to extract the file
-            //LSbImage img = new LSbImage(imgPath);
-            List<byte> data = new();
+            LSbImage img = new LSbImage(imagePath);
+            List<byte> data = new();    
             byte buffer = 0;
             byte bufferMask = 1;
             bool bit;
 
-            int fileNameLength = 0;         // in bytes
-            int dataLength = 0;             // in bytes
+            // in bytes
+            int fileNameLength = 0;         
+            int dataLength = 0;             
+            
             int bitsPerByte = 1;
             string fileName = "";
 
-            for (int i = 0; i < pixels.Length; i++)
+            for (int i = 0; i < img.pixels.Length; i++)
             {
                 // cycle through all color channels ARGB
                 for (int j = 0; j < 4; j++)
@@ -187,7 +201,7 @@ namespace Steganography
                     // cycle through `k` least significant bits in a byte
                     for (int k = 0; k < bitsPerByte; k++)
                     {
-                        bit = ((1 << (j * 8 + k)) & pixels[i].ToArgb()) != 0;
+                        bit = ((1 << (j * 8 + k)) & img.pixels[i].ToArgb()) != 0;
                         if (bit)
                         {
                             buffer |= bufferMask;
@@ -268,18 +282,15 @@ namespace Steganography
             throw new Exception("Could not extract file from image. Probably not a valid steg image.");
         }
 
-        public void PrintCapacity()
+        // Convert file name from byte array to string
+        private static string GetString(byte[] ch)
         {
-            System.Console.WriteLine($"Capacities for image {Path.GetFileName(imgPath)} using `lsb` method:");
-            int nPixels = pixels.Length;
-            int nChannels = 4;
-            for (int i = 1; i <= 8; i++)
+            char[] chars = new char[ch.Length / 2];
+            for (int i = 0; i < ch.Length; i+=2)
             {
-                int nBits = nPixels * nChannels * i;
-                int nBytes = nBits / 8;
-                int nKBytes = nBytes / 1024;
-                Console.WriteLine($"bitsPerByte: {i}, capacity: {nBits} bits = {nBytes} B = {nKBytes} kB");
+                chars[i / 2] = (char)((ch[i] << 8) | ch[i + 1]);
             }
+            return new string(chars);
         }
     }
 }

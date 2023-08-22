@@ -24,35 +24,28 @@ namespace Steganography
                 case "hide":
                     if (args[1] == "jsteg")
                     {
-                        HiddenFile hf = new HiddenFile(args[2], StegType.JSteg);
-                        JStegImage img = new JStegImage(args[3]);
-                        img.Hide(hf);
                         int quality = 50;
-                        if (args.Length > 5)
-                            quality = int.Parse(args[5]);
-                        img.Write(args[4], quality);
-                        
+                        if (args.Length > 4)
+                            quality = int.Parse(args[4]);
+                        JStegImage img = new JStegImage(args[3], quality);
+                        img.Hide(args[2]);
                     }
                     else if (args[1] == "lsb")
                     {
-                        int bitsPerByte = int.Parse(args[3]);
-                        HiddenFile hf = new HiddenFile(args[2], StegType.LSbEncoding, bitsPerByte);
-                        LSbImage lSbImage = new LSbImage(args[4]);
-                        lSbImage.Hide(hf);
-                        lSbImage.Write();
+                        int bitsPerByte = int.Parse(args[4]);
+                        LSbImage lsbImage = new LSbImage(args[3], bitsPerByte);
+                        lsbImage.Hide(args[2]);
                     }
                     break;
                 
                 case "extract":
                     if (args[1] == "jsteg")
                     {
-                        JPEGExtractor ext = new JPEGExtractor(args[2]);
-                        ext.ReadFile();
+                        JStegImage.Extract(args[2]);
                     }
                     else if (args[1] == "lsb")
                     {
-                        LSbImage lsb = new LSbImage(args[2]);
-                        lsb.Extract();
+                        LSbImage.Extract(args[2]);
                     }
                     break;
 
@@ -71,8 +64,8 @@ namespace Steganography
 
                 case "compress":
                     {
-                        JStegImage img = new JStegImage(args[1]);
-                        img.Write(args[2], int.Parse(args[3]));
+                        JStegImage img = new JStegImage(args[1], int.Parse(args[3]));
+                        img.Compress(args[2]);
                     }
                     break;
 

@@ -42,12 +42,10 @@ namespace Steganography
         /// In case of jsteg bitsPerByte is irrelevant.
         /// </summary>
         /// <param name="path"> Path to the file to be hidden</param>
-        /// <param name="st"> Type of encoding to use. Either jsteg or LSb </param>
         /// <param name="bitsPerByte"> Number of LS bits to change. Defaults to 1 for jsteg. </param>
-        public HiddenFile(string path, StegType st, int bitsPerByte=1)
+        public HiddenFile(string path, int bitsPerByte=1)
         {
             this.bitsPerByte = bitsPerByte;
-            if (st == StegType.JSteg) this.bitsPerByte = 1;
 
             fileName = Path.GetFileName(path);
             byte[] fileNameBytes = GetBytes(fileName);
