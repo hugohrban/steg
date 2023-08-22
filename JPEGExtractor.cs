@@ -6,9 +6,9 @@ namespace Steganography
     class JPEGExtractor
     {   
         const int BlockSize = 8;
-        int dataLength = 0;
-        int extractedFileNameLength = 0;
-        bool done = false;
+        private int dataLength = 0;
+        private int extractedFileNameLength = 0;
+        private bool done = false;
         string extractedFileName = "";
         private byte dataBufferMask = 1;
         private byte dataBuffer = 0;
@@ -307,18 +307,4 @@ namespace Steganography
             }
         }
     }
-
-    public static class Extensions
-    {
-        public static int Sum(this byte[] array)
-        {
-            int sum = 0;
-            for (int i = 0; i < array.Length; i++)
-            {
-                sum += array[i];
-            }
-            return sum;
-        }
-    }
-
 }
