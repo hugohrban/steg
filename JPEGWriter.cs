@@ -4,7 +4,7 @@ using System.IO;
 
 namespace Steganography
 {
-    class JPEGWriter
+    class JPEGWriter : IDisposable
     {
         # region static fields and methods
         public static readonly byte[] SOI = { 0xFF, 0xD8 };
@@ -175,7 +175,7 @@ namespace Steganography
         private int dataIdx;
         private byte dataByteMask = 1;
         // number of non-zero-or-one AC coefficients = number of bits that can be hidden
-        private int capacityCounter = 0;
+        public int capacityCounter { get; private set; } = 0;
         private HuffmanLookup[] huffmanLookups = new HuffmanLookup[4];
 
         // scaled quantization tables in zig-zag order
@@ -234,7 +234,7 @@ namespace Steganography
             }
         }
 
-        // write the least sig nBits of bits to the stream. Assuming nBits <= 16
+        // write the nBits least-significant of bits to the stream. Assuming nBits <= 16
         public void Emit(uint bits, int nBits)
         {
             this.nBits += nBits;
@@ -494,13 +494,7 @@ namespace Steganography
                 {
                     throw new Exception("Not enough capacity to hide the file. Try using a larger image or a smaller file.");
                 }
-                Emit(0x7F, 7);
-            }
-            else
-            {
-                int nBytes = capacityCounter / 8;
-                int kBytes = nBytes / 1024;
-                System.Console.WriteLine($"Capacity using `jsteg` method with Q = {quality}: {nBytes} bytes = {kBytes} kB");
+                Emit(0xFF, 7);
             }
         }
         
@@ -514,6 +508,10 @@ namespace Steganography
         {
             writer.Flush();
             writer.Close();
+        }
+
+        public void Dispose()
+        {
             writer.Dispose();
         }
 
