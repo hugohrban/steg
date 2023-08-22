@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Threading.Tasks;
 
 namespace Steganography
 {
@@ -16,17 +17,7 @@ namespace Steganography
         }
         public static int[] DCT2(int[] block)
         {
-            double alpha(int u)
-            {
-                if (u == 0)
-                {
-                    return 1 / Math.Sqrt(2);
-                }
-                else
-                {
-                    return 1;
-                }
-            }
+            double alpha(int u) => (u == 0) ? 1 / Math.Sqrt(2) : 1;
 
             int[] dct = new int[8 * 8];
 
@@ -225,7 +216,6 @@ namespace Steganography
 
         public void Write(string? outImagePath=null, int quality=50)
         {
-            // output to stdout for now
             JPEGWriter writer = new JPEGWriter(outImagePath, quality);
             writer.data = hfData;
 
@@ -237,10 +227,12 @@ namespace Steganography
             writer.WriteSOSScanData(quantized);
             writer.WriteEOI();
             writer.FlushAndClose();
+            writer.Dispose();
         }
 
         private void ComputeQuantization()
         {
+            int blocksCount = (width / 8) * (height / 8);
             // TODO make parallel
             for (int x = 0; x < width; x += 8)
             {
@@ -253,39 +245,58 @@ namespace Steganography
 
         public void PrintCapacity()
         {
-            JPEGWriter writer;    
-            for (int Q = 100; Q > 0; Q -= 5)
-            {
-                writer = new JPEGWriter(null, Q);
+            int[] capacitiesBits = new int[20];
+
+            Parallel.For(0, 20, i => {
+                JPEGWriter writer = new JPEGWriter(null, 100 - i * 5);
                 writer.WriteSOSScanData(quantized, false);
+                capacitiesBits[i] = writer.capacityCounter;
+                writer.FlushAndClose();
+                writer.Dispose();
+            });
+
+            for (int i = 0; i < 20; i++)
+            {
+                int Q = 100 - i * 5;
+                int capacityB = capacitiesBits[i] / 8;
+                int capacityKB = capacityB / 1024;
+                Console.WriteLine($"Capacity using `jsteg` method with Q={Q}: {capacityB} B = {capacityKB} KB");
             }
+            
+            // synchronous version
+            // JPEGWriter writer;    
+            // for (int Q = 100; Q > 0; Q -= 5)
+            // {
+            //     writer = new JPEGWriter(null, Q);
+            //     writer.WriteSOSScanData(quantized, false);
+            // }
         }
         
         private void GetDCTCoeffs(int x, int y)
         {
-            int[] shiftedY  = new int[8 * 8];
-            int[] shiftedCb = new int[8 * 8];
-            int[] shiftedCr = new int[8 * 8];
+            int[] blockY  = new int[8 * 8];
+            int[] blockCb = new int[8 * 8];
+            int[] blockCr = new int[8 * 8];
 
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < 8; j++)
                 {
-                    shiftedY[i * 8 + j]  = pixels[y + i, x + j].Y;
-                    shiftedCb[i * 8 + j] = pixels[y + i, x + j].Cb;
-                    shiftedCr[i * 8 + j] = pixels[y + i, x + j].Cr;
+                    blockY[i * 8 + j]  = pixels[y + i, x + j].Y;
+                    blockCb[i * 8 + j] = pixels[y + i, x + j].Cb;
+                    blockCr[i * 8 + j] = pixels[y + i, x + j].Cr;
                 }
             }
 
             // SLOW - directly implementing the DCT equation
-            // int[] quantizedY  = DCT2(shiftedY);
-            // int[] quantizedCb = DCT2(shiftedCb);
-            // int[] quantizedCr = DCT2(shiftedCr);
+            // int[] quantizedY  = DCT2(blockY);
+            // int[] quantizedCb = DCT2(blockCb);
+            // int[] quantizedCr = DCT2(blockCr);
 
             // FAST
-            int[] quantizedY  = fdctint(shiftedY);
-            int[] quantizedCb = fdctint(shiftedCb);
-            int[] quantizedCr = fdctint(shiftedCr);
+            int[] quantizedY  = fdctint(blockY);
+            int[] quantizedCb = fdctint(blockCb);
+            int[] quantizedCr = fdctint(blockCr);
 
             for (int i = 0; i < 8; i++)
             {
