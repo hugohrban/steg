@@ -2,10 +2,14 @@ using System;
 
 namespace Steganography
 {
-    class HuffmanSpec
+    /// <summary>
+    /// Specification of a huffman encoding table.
+    /// </summary>
+    struct HuffmanSpec
     {
-        public byte[] count = Array.Empty<byte>();
-        public byte[] symbol = Array.Empty<byte>();
-
+        // counts[i] is the number of codes of length i bits
+        public byte[] count;
+        // symbols[i] is the decoded i-th code word
+        public byte[] symbol;
     }
 }

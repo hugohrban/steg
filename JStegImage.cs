@@ -16,7 +16,7 @@ namespace Steganography
         public static void Extract(string imagePath)
         {
             JPEGExtractor extractor = new JPEGExtractor(imagePath);
-            extractor.ReadFile();
+            extractor.ExtractFile();
         }
         public static int[] DCT2(int[] block)
         {
@@ -283,6 +283,7 @@ namespace Steganography
             // so that users don't call Write directly by accident, since .Hide() does it already
             Write(outImagePath);
         }
+        
         /// <summary>
         /// Write the image to a jpg file. If no path is specified, the image will be written to stdout.
         /// </summary>

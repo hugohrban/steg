@@ -1,8 +1,11 @@
 using System;
-using System.Linq;
 
 namespace Steganography
 {
+    /// <summary>
+    /// Extractor of files hidden using the jsteg algorithm. Takes the least-significant bits of the AC coefficients,
+    /// decodes them using the Huffman tables, and saves the extracted file to disk with its original name.
+    /// </summary>
     class JPEGExtractor
     {   
         const int BlockSize = 8;
@@ -24,6 +27,41 @@ namespace Steganography
             reader = new BinaryReader(File.Open(stegImageName, FileMode.Open));
         }
 
+        /// <summary>
+        /// Extract hidden file from a jpeg image. Throws ArgumentException if the file is not in the correct format.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        public void ExtractFile()
+        {
+            byte[] SOI = reader.ReadBytes(2);
+            if (SOI[0] != 0xFF || SOI[1] != 0xD8)
+            {
+                throw new ArgumentException("Invalid file format. SOI marker expected.");
+            }
+            ProcessMarker(JPEGWriter.DQT);
+            ProcessMarker(JPEGWriter.SOF0);
+            GetHuffmanTables();
+            ProcessMarker(JPEGWriter.SOS);
+            while (!done)
+            {
+                ProcessSOSBlock(0);
+                ProcessSOSBlock(1);
+                ProcessSOSBlock(1);
+            }
+            reader.Close();
+            reader.Dispose();
+
+            using (BinaryWriter writer = new BinaryWriter(File.Open("extr_" + extractedFileName, FileMode.Create)))
+            {
+                writer.Write(data.ToArray(), 15 + extractedFileNameLength + 4, dataLength);
+            }
+        }
+
+        /// <summary>
+        /// Compile huffman specifications into maps from codeword to symbol. 
+        /// This is the inverse mapping of HuffmanLookup.
+        /// </summary>
+        /// <param name="huffmanSpecs"></param>
         private void CompileHuffmanSpecs(HuffmanSpec[] huffmanSpecs)
         {
             for (int i = 0; i < huffmanSpecs.Length; i++)
@@ -45,6 +83,11 @@ namespace Steganography
             }
         }
 
+        /// <summary>
+        /// Read a single bit from the entropy-coded data in the jpeg image.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         private int ReadBit()
         {
             if (bufferLength == 0)
@@ -74,6 +117,12 @@ namespace Steganography
             return result;
         }
 
+        /// <summary>
+        /// Chacks if we are done extracting data. If not, checks if we are at a specific point 
+        /// in the file and extracts data accordingly.
+        /// </summary>
+        /// <returns>True if we read all hidden file data</returns>
+        /// <exception cref="ArgumentException"></exception>
         private bool ChcekData()
         {
             if (done) return true;
@@ -125,23 +174,19 @@ namespace Steganography
             // get file data is extracted
             if (data.Count == 15 + extractedFileNameLength + 4 + dataLength)
             {
-                // file data
-                // for (int i = 0; i < dataLength; i++)
-                // {
-                //     System.Console.Write((char)data[15 + extractedFileNameLength + 4 + i]);
-                // }
                 System.Console.WriteLine("all file data extracted");
                 return true;
             }
             return false;
         }
 
+        /// <summary>
+        /// Write a bit of extracted file data to data buffer.
+        /// </summary>
+        /// <param name="bit"></param>
         private void WriteBit(int bit)
         {
-            if (done) 
-            {
-                return;
-            }
+            if (done) return;
 
             if (bit == 1)
             {
@@ -156,33 +201,7 @@ namespace Steganography
                 dataBufferMask = 1;
             }
         }
-
-        public void ReadFile()
-        {
-            byte[] SOI = reader.ReadBytes(2);
-            if (SOI[0] != 0xFF || SOI[1] != 0xD8)
-            {
-                throw new ArgumentException("Invalid file format. SOI marker expected.");
-            }
-            ProcessMarker(JPEGWriter.DQT);
-            ProcessMarker(JPEGWriter.SOF0);
-            GetHuffmanTables();
-            ProcessMarker(JPEGWriter.SOS);
-            while (!done)
-            {
-                ProcessSOSBlock(0);
-                ProcessSOSBlock(1);
-                ProcessSOSBlock(1);
-            }
-            reader.Close();
-            reader.Dispose();
-
-            using (BinaryWriter writer = new BinaryWriter(File.Open("extr_" + extractedFileName, FileMode.Create)))
-            {
-                writer.Write(data.ToArray(), 15 + extractedFileNameLength + 4, dataLength);
-            }
-        }
-
+        
         private void ProcessMarker(byte[] marker)
         {
             byte[] markerRead = reader.ReadBytes(2);
@@ -239,6 +258,12 @@ namespace Steganography
             CompileHuffmanSpecs(huffmanSpecs);
         }
 
+        /// <summary>
+        /// Process a single SOS block of entropy-coded data and writing the extracted data to buffer.
+        /// We keep trying to index into the look-up table until we find a match - equivalent to searching 
+        /// for a leaf node in a huff tree.
+        /// </summary>
+        /// <param name="component"></param>
         private void ProcessSOSBlock(int component)
         {
             int counter = 1;
@@ -268,13 +293,10 @@ namespace Steganography
                 }
                 int AC = huffmanLUT[component * 2 + 1][(nBits << 24) | ACcode];
                 
-                // end of block special code
-                if (AC == 0)
-                {
-                    break;
-                }
+                // end of block special code - EOB
+                if (AC == 0) break;
 
-                // skip 16 zeros
+                // skip 16 zeros special code - ZRL
                 if (AC == 0xF0)
                 {
                     counter += 16;
@@ -282,12 +304,9 @@ namespace Steganography
                 }
 
                 int run = AC >> 4;
-                int size = AC & 0xF;
+                int size = AC & 0x0F;
                 counter += run;
-                if (size == 0)
-                {
-                    continue;
-                }
+                if (size == 0) continue;
                 
                 int value = ReadBits(size);
                 

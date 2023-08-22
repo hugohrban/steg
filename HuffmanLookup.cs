@@ -2,12 +2,14 @@ using System;
 
 namespace Steganography
 {
+    /// <summary>
+    /// Huffman lookup table is a compiled look-up table representation of a huffmanSpec.
+    /// Each value maps to an int of which the 8 most significant bits hold the
+    /// codeword size in bits and the 24 least significant bits hold the codeword.
+    /// The maximum codeword size is 16 bits.
+    /// </summary>
     class HuffmanLookup
     {
-        // huffmanLUT is a compiled look-up table representation of a huffmanSpec.
-        // Each value maps to an int of which the 8 most significant bits hold the
-        // codeword size in bits and the 24 least significant bits hold the codeword.
-        // The maximum codeword size is 16 bits.
         public int[] huffmanCodes;
         public HuffmanLookup(HuffmanSpec spec)
         {

@@ -14,7 +14,7 @@ namespace Steganography
             0x61, 0x6e, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x79};
 
         // convert chars in a string to a byte array
-        private byte[] GetBytes(string s)
+        private static byte[] GetBytes(string s)
         {
             byte[] bytes = new byte[s.Length * 2];
             for (int i = 0; i < s.Length; i++)
