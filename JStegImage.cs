@@ -186,6 +186,7 @@ namespace Steganography
         public int height {get; private set;}
         public int width {get; private set;}
         private string imagePath;
+        private const int blockSize = 8;
 
         /// <summary>
         /// Creates a JStegImage object from a jpeg image file and computes DCT coefficients of the image,
@@ -196,8 +197,8 @@ namespace Steganography
         {
             using (Bitmap coverImage = new Bitmap(imagePath))
             {            
-                width = coverImage.Width / 8 * 8;
-                height = coverImage.Height / 8 * 8;
+                width = coverImage.Width / blockSize * blockSize;
+                height = coverImage.Height / blockSize * blockSize;
                 pixels = new YCbCrColor[height, width];
                 for (int i = 0; i < height; i++)
                 {
@@ -215,6 +216,11 @@ namespace Steganography
             ComputeQuantizationParallel();
         }
 
+        /// <summary>
+        /// Hide a file in the image. The file will be embedded in the image when it is written to a file
+        /// and can be extracted from the image later.
+        /// </summary>
+        /// <param name="hiddenFile"></param>
         public void Hide(HiddenFile hiddenFile)
         {
             hfData = hiddenFile.data;
@@ -246,9 +252,9 @@ namespace Steganography
         /// </summary>
         private void ComputeQuantization()
         {
-            for (int x = 0; x < width; x += 8)
+            for (int x = 0; x < width; x += blockSize)
             {
-                for (int y = 0; y < height; y += 8)
+                for (int y = 0; y < height; y += blockSize)
                 {
                     GetDCTCoeffs(x, y);
                 }
@@ -260,8 +266,8 @@ namespace Steganography
         /// </summary>
         private void ComputeQuantizationParallel()
         {
-            int blocksWidth = width / 8;
-            int blocksHeight = height / 8;
+            int blocksWidth = width / blockSize;
+            int blocksHeight = height / blockSize;
             int blocksCount = blocksWidth * blocksHeight;
             int threadsCount = Environment.ProcessorCount;
             int blocksPerThread = blocksCount / threadsCount;
@@ -270,8 +276,8 @@ namespace Steganography
                 int endBlock = (i == threadsCount - 1) ? blocksCount : (i + 1) * blocksPerThread;
                 for (int block = startBlock; block < endBlock; block++)
                 {
-                    int x = block % blocksWidth * 8;
-                    int y = block / blocksWidth * 8;
+                    int x = block % blocksWidth * blockSize; 
+                    int y = block / blocksWidth * blockSize;
                     GetDCTCoeffs(x, y);
                 }
             });
@@ -338,14 +344,14 @@ namespace Steganography
             }
 
             // SLOW - directly implementing the DCT equation
-            // int[] quantizedY  = DCT2(blockY);
-            // int[] quantizedCb = DCT2(blockCb);
-            // int[] quantizedCr = DCT2(blockCr);
+            int[] quantizedY  = DCT2(blockY);
+            int[] quantizedCb = DCT2(blockCb);
+            int[] quantizedCr = DCT2(blockCr);
 
             // FAST
-            int[] quantizedY  = fdctint(blockY);
-            int[] quantizedCb = fdctint(blockCb);
-            int[] quantizedCr = fdctint(blockCr);
+            // int[] quantizedY  = fdctint(blockY);
+            // int[] quantizedCb = fdctint(blockCb);
+            // int[] quantizedCr = fdctint(blockCr);
 
             for (int i = 0; i < 8; i++)
             {
