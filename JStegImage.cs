@@ -179,7 +179,6 @@ namespace Steganography
         }
 
         #endregion
-        private Bitmap coverImage;
         private YCbCrColor[,] pixels;
         //private JPEGWriter writer;
         private dctCoeffs[,] quantized;
@@ -187,26 +186,33 @@ namespace Steganography
         public int height {get; private set;}
         public int width {get; private set;}
         private string imagePath;
+
+        /// <summary>
+        /// Creates a JStegImage object from a jpeg image file and computes DCT coefficients of the image,
+        /// which are used in the jpeg encoding process and can be used to hide data in the image.
+        /// </summary>
+        /// <param name="imagePath"></param>
         public JStegImage(string imagePath)
         {
-            coverImage = new Bitmap(imagePath);
-            width = coverImage.Width / 8 * 8;
-            height = coverImage.Height / 8 * 8;
-            pixels = new YCbCrColor[height, width];
-            for (int i = 0; i < height; i++)
-            {
-                for (int j = 0; j < width; j++)
+            using (Bitmap coverImage = new Bitmap(imagePath))
+            {            
+                width = coverImage.Width / 8 * 8;
+                height = coverImage.Height / 8 * 8;
+                pixels = new YCbCrColor[height, width];
+                for (int i = 0; i < height; i++)
                 {
-                    pixels[i,j] = RGBtoYCbCr(coverImage.GetPixel(j, i));
+                    for (int j = 0; j < width; j++)
+                    {
+                        pixels[i,j] = RGBtoYCbCr(coverImage.GetPixel(j, i));
+                    }
                 }
             }
-            coverImage.Dispose();
             this.imagePath = imagePath;
 
             hfData = Array.Empty<byte>();
             
             quantized = new dctCoeffs[width, height];
-            ComputeQuantization();
+            ComputeQuantizationParallel();
         }
 
         public void Hide(HiddenFile hiddenFile)
@@ -214,6 +220,11 @@ namespace Steganography
             hfData = hiddenFile.data;
         }
 
+        /// <summary>
+        /// Write the image to a jpg file. If no path is specified, the image will be written to stdout.
+        /// </summary>
+        /// <param name="outImagePath"></param>
+        /// <param name="quality">JPEG compression quality setting (from 1 to 100) </param>
         public void Write(string? outImagePath=null, int quality=50)
         {
             JPEGWriter writer = new JPEGWriter(outImagePath, quality);
@@ -230,10 +241,11 @@ namespace Steganography
             writer.Dispose();
         }
 
+        /// <summary>
+        /// Compute DCT coefficients for all 8x8 blocks in the image. (Synchronous version = slow)
+        /// </summary>
         private void ComputeQuantization()
         {
-            int blocksCount = (width / 8) * (height / 8);
-            // TODO make parallel
             for (int x = 0; x < width; x += 8)
             {
                 for (int y = 0; y < height; y += 8)
@@ -243,10 +255,38 @@ namespace Steganography
             }
         }
 
+        /// <summary>
+        /// Compute DCT coefficients for all 8x8 blocks in the image parallelly.
+        /// </summary>
+        private void ComputeQuantizationParallel()
+        {
+            int blocksWidth = width / 8;
+            int blocksHeight = height / 8;
+            int blocksCount = blocksWidth * blocksHeight;
+            int threadsCount = Environment.ProcessorCount;
+            int blocksPerThread = blocksCount / threadsCount;
+            Parallel.For(0, threadsCount, i => {
+                int startBlock = i * blocksPerThread;
+                int endBlock = (i == threadsCount - 1) ? blocksCount : (i + 1) * blocksPerThread;
+                for (int block = startBlock; block < endBlock; block++)
+                {
+                    int x = block % blocksWidth * 8;
+                    int y = block / blocksWidth * 8;
+                    GetDCTCoeffs(x, y);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Prints the capacity of the image for different quality factors from 100 to 5, with step 5.
+        /// Computation is performed in parallel.
+        /// </summary>
         public void PrintCapacity()
         {
+            // we create a write for each quality setting and call the WriteSOSScanData method with 
+            // the quantized coefficients, and writeMode set to false, so that the writer doesn't actually write anything
+            // after "writing" we get the capacity from the writer's capacityCounter field
             int[] capacitiesBits = new int[20];
-
             Parallel.For(0, 20, i => {
                 JPEGWriter writer = new JPEGWriter(null, 100 - i * 5);
                 writer.WriteSOSScanData(quantized, false);
@@ -269,9 +309,18 @@ namespace Steganography
             // {
             //     writer = new JPEGWriter(null, Q);
             //     writer.WriteSOSScanData(quantized, false);
+            //     int capacityB = writer.capacityCounter / 8;
+            //     int capacityKB = capacityB / 1024;
+            //     Console.WriteLine($"Capacity using `jsteg` method with Q={Q}: {capacityB} B = {capacityKB} KB");
             // }
         }
         
+        /// <summary>
+        /// Computes DCT coefficients for a block of 8x8 pixels starting at (x,y) absolute coordinates 
+        /// and updates the `quantized` array.
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
         private void GetDCTCoeffs(int x, int y)
         {
             int[] blockY  = new int[8 * 8];
