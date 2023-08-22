@@ -26,9 +26,6 @@ namespace Steganography
             return bytes;
         }
 
-        
-         
-        
         /// <summary>
         /// Class for preprocessing a file to be hidden in an image. Content of file is read as an array of bytes and prepended with
         /// specific metadata to store the file name, encoding parameters, etc.
@@ -51,7 +48,7 @@ namespace Steganography
         {
             this.bitsPerByte = bitsPerByte;
             if (st == StegType.JSteg) this.bitsPerByte = 1;
-            
+
             fileName = Path.GetFileName(path);
             byte[] fileNameBytes = GetBytes(fileName);
             byte[] fileData = File.ReadAllBytes(path);

@@ -12,7 +12,9 @@ namespace Steganography
         private int width;
         private int height;
 
-        // get all pixels from a bitmap as an array of Color objects, line by line
+        /// <summary>
+        /// Get all pixels from a bitmap as an array of Color objects, line by line
+        /// </summary>
         private Color[] GetPixels(Bitmap bitmap)
         {
             Color[] pixels = new Color[bitmap.Width * bitmap.Height];
@@ -26,17 +28,23 @@ namespace Steganography
             return pixels;
         }
 
+        /// <summary>
+        /// Representation of an image bitmap. Reads the image from disk and stores it in an array of Color objects.
+        /// </summary>
+        /// <param name="imgPath"></param>
         public LSbImage(string imgPath)
         {
             Bitmap coverImage = new Bitmap(imgPath);
-            this.imgPath = imgPath;
+            this.imgPath = Path.GetFileName(imgPath);
             this.pixels = GetPixels(coverImage);
             this.width = coverImage.Width;
             this.height = coverImage.Height;
             coverImage.Dispose();
         }
-
-        // write the image to disk. Call this method after hiding a file in the image.
+        
+        /// <summary>
+        /// Write the image to disk. This method should be called after hiding a file in the image using .Hide() method.
+        /// </summary>
         public void Write()
         {
             System.Console.WriteLine("Writing LSb-steg image to disk...");
@@ -47,17 +55,21 @@ namespace Steganography
                 int y = i / stegImage.Width;
                 stegImage.SetPixel(x, y, pixels[i]);
             }
-            string imgName = Path.GetFileName(imgPath);
-            stegImage.Save("steg/" + imgName);
-            System.Console.WriteLine($"Writing done. Image saved as steg/{imgName}");
+            string imgName = Path.GetFileNameWithoutExtension(imgPath);
+            stegImage.Save("steg_" + imgName + ".png", ImageFormat.Png);
+            System.Console.WriteLine($"Writing done. Image saved as steg_{imgName}.png");
         }
 
         private void HideArray(byte[] arr, int bitsPerByte)
         {
-            // TODO multithreading
+            // TODO multithreading when hiding and bitsPerByte == 1
         }
 
-        // hide a hiffenFile object in the image
+        /// <summary>
+        /// Hide a hiffenFile object in the least-significant bits of pixels of the image
+        /// </summary>
+        /// <param name="hf"></param>
+        /// <exception cref="InvalidDataException"></exception>
         public void Hide(HiddenFile hf)
         {
             int bufferMask = 1;
@@ -148,7 +160,11 @@ namespace Steganography
             return new string(chars);
         }
 
-        // try to extract a hidden file from image
+        /// <summary>
+        /// Try to extract a hidden file from image and save it with its original name prepended with "extr_".
+        /// Throws an exception if the image does not contain a hidden file.
+        /// </summary>
+        /// <exception cref="Exception"></exception>
         public void Extract()
         {
             // TODO we dont need to store the metadata in data array, we can just read it and use it to extract the file
@@ -192,7 +208,7 @@ namespace Steganography
                             {
                                 if (data[l] != HiddenFile.magicNumber[l])
                                 {
-                                    throw new ArgumentException("magic number does not match. " +
+                                    throw new Exception("magic number does not match. " +
                                         "probably not a valig steg image.");
                                 }
                             }
@@ -249,6 +265,7 @@ namespace Steganography
                     }
                 }
             }
+            throw new Exception("Could not extract file from image. Probably not a valid steg image.");
         }
 
         public void PrintCapacity()
