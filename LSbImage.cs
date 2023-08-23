@@ -12,12 +12,13 @@ namespace Steganography
         private int width;
         private int height;
         private int bitsPerByte;
+        private string? outImagePath;
 
         /// <summary>
         /// Representation of an image bitmap. Reads the image from disk and stores it in an array of Color objects.
         /// </summary>
         /// <param name="imgPath"></param>
-        public LSbImage(string imgPath, int bitsPerByte=1)
+        public LSbImage(string imgPath, int bitsPerByte=1, string? outImagePath=null)
         {
             using (Bitmap coverImage = new Bitmap(imgPath))
             {
@@ -26,6 +27,12 @@ namespace Steganography
                 this.width = coverImage.Width;
                 this.height = coverImage.Height;
                 this.bitsPerByte = bitsPerByte;
+                this.outImagePath = outImagePath;
+                if (this.outImagePath is not null)
+                {
+                    this.outImagePath = Path.GetFileNameWithoutExtension(this.outImagePath);
+                    System.Console.WriteLine(this.outImagePath);
+                }
             }
         }
 
@@ -79,6 +86,7 @@ namespace Steganography
                             if (dataIx >= hf.data.Length)
                             {
                                 System.Console.WriteLine("Hiding done.");
+                                Write();
                                 return;
                             }
                             buffer = hf.data[dataIx];
@@ -138,7 +146,7 @@ namespace Steganography
         /// </summary>
         private void Write()
         {
-            System.Console.WriteLine("Writing LSb-steg image to disk...");
+            Console.WriteLine("Writing LSb-steg image to disk...");
             Bitmap stegImage = new Bitmap(width, height);
             for (int i = 0; i < pixels.Length; i++)
             {
@@ -146,9 +154,9 @@ namespace Steganography
                 int y = i / stegImage.Width;
                 stegImage.SetPixel(x, y, pixels[i]);
             }
-            string imgName = Path.GetFileNameWithoutExtension(imgPath);
-            stegImage.Save("steg_" + imgName + ".png", ImageFormat.Png);
-            System.Console.WriteLine($"Writing done. Image saved as steg_{imgName}.png");
+            string stegImageName = (outImagePath is not null) ? outImagePath : ("steg_" + Path.GetFileNameWithoutExtension(imgPath));
+            stegImage.Save(stegImageName + ".png", ImageFormat.Png);
+            System.Console.WriteLine($"Writing done. Image saved as {stegImageName}.png");
         }
 
         private void HideArray(byte[] arr, int bitsPerByte)

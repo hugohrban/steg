@@ -184,7 +184,6 @@ namespace Steganography
         #endregion
 
         private YCbCrColor[,] pixels;
-        //private JPEGWriter writer;
         private dctCoeffs[,] quantized;
         public byte[] hfData {get; private set;}
         public int height {get; private set;}
@@ -192,13 +191,14 @@ namespace Steganography
         private string imagePath;
         private const int blockSize = 8;
         private int quality;
+        private string? outImagePath;
 
         /// <summary>
         /// Creates a JStegImage object from a jpeg image file and computes DCT coefficients of the image,
         /// which are used in the jpeg encoding process and can be used to hide data in the image.
         /// </summary>
         /// <param name="imagePath"></param>
-        public JStegImage(string imagePath, int quality=50)
+        public JStegImage(string imagePath, int quality=50, string? outImagePath=null)
         {
             using (Bitmap coverImage = new Bitmap(imagePath))
             {            
@@ -217,6 +217,7 @@ namespace Steganography
             this.imagePath = imagePath;
             hfData = Array.Empty<byte>();
             this.quality = quality;
+            this.outImagePath = outImagePath;
 
             quantized = new dctCoeffs[width, height];
             ComputeQuantizationParallel();
@@ -230,7 +231,7 @@ namespace Steganography
         {
             HiddenFile hiddenFile = new HiddenFile(filePath);
             hfData = hiddenFile.data;
-            string stegImagePath = "steg_" + Path.GetFileName(imagePath);
+            string stegImagePath = (outImagePath is not null) ? outImagePath : "steg_" + Path.GetFileName(imagePath);
             Write(stegImagePath);
         }
 
