@@ -33,6 +33,7 @@ namespace Steganography
                 "    - `jsteg` - quality of jpeg compression (1-100) (recommended Q=50)\n" +
                 "    - `lsb`   - number of least significant bits to change (1-8) (recommended bpB=1)\n\n" +
                 "OUTPUT_IMG (optional) - path to the output image. If not specified, the input image will be saved as \"steg_\" + its original name.\n" + 
+                "The order of the optional parameters does not matter, it is inferred by the program.\n\n" +
                 "Examples: dotnet run hide jsteg file.txt input.jpg 50\n" +
                 "          dotnet run hide lsb file.txt input.jpg 1\n" +
                 "          dotnet run hide lsb file.txt input.jpg output.jpg\n" +
@@ -88,10 +89,21 @@ namespace Steganography
                         string? outImagePath = null;
                         if (args.Length > 4)
                         {
-                            quality = int.Parse(args[4]);
-                            if (args.Length > 5)
+                            if (IsInteger(args[4]))
                             {
-                                outImagePath = args[5];
+                                quality = int.Parse(args[4]);
+                                if (args.Length > 5)
+                                {
+                                    outImagePath = args[5];
+                                }
+                            }
+                            else
+                            {
+                                outImagePath = args[4];
+                                if (args.Length > 5)
+                                {
+                                    quality = int.Parse(args[5]);
+                                }
                             }
                         }
                         JStegImage img = new JStegImage(args[3], quality, outImagePath);
@@ -103,10 +115,21 @@ namespace Steganography
                         string? outImagePath = null;
                         if (args.Length > 4)
                         {
-                            bitsPerByte = int.Parse(args[4]);
-                            if (args.Length > 5)
+                           if (IsInteger(args[4]))
                             {
-                                outImagePath = args[5];
+                                bitsPerByte = int.Parse(args[4]);
+                                if (args.Length > 5)
+                                {
+                                    outImagePath = args[5];
+                                }
+                            }
+                            else
+                            {
+                                outImagePath = args[4];
+                                if (args.Length > 5)
+                                {
+                                    bitsPerByte = int.Parse(args[5]);
+                                }
                             }
                         }
                         LSbImage lsbImage = new LSbImage(args[3], bitsPerByte, outImagePath);
@@ -208,6 +231,11 @@ namespace Steganography
                     System.Console.WriteLine(helpMessageGeneral);
                     break;
             }
+        }
+        public static bool IsInteger(string input)
+        {
+            // Try to parse the input as an integer
+            return int.TryParse(input, out _);
         }
     }
 }
