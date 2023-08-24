@@ -22,10 +22,13 @@ namespace Steganography
         {
             using (Bitmap coverImage = new Bitmap(imgPath))
             {
-                this.imgPath = Path.GetFileName(imgPath);
-                GetPixels(coverImage);
                 this.width = coverImage.Width;
                 this.height = coverImage.Height;
+                this.imgPath = Path.GetFileName(imgPath);
+                
+                pixels = new Color[coverImage.Width * coverImage.Height];
+                GetPixels(coverImage);
+                
                 this.bitsPerByte = bitsPerByte;
                 this.outImagePath = outImagePath;
                 if (this.outImagePath is not null)
@@ -128,17 +131,14 @@ namespace Steganography
                 }
                 int localStart = start;
                 int localEnd = end;
-                tasks[i] = Task.Run(() => GetPixelsTask(bitmap, localStart, localEnd));
+                tasks[i] = Task.Run(() => {
+                    for (int j = localStart; j < localEnd; j++)
+                    {
+                        pixels[j] = bitmap.GetPixel(j % bitmap.Width, j / bitmap.Width);
+                    }
+                });
             }
             Task.WaitAll(tasks);
-        }
-
-        private void GetPixelsTask(Bitmap bitmap, int localStart, int localEnd)
-        {
-            for (int i = localStart; i < localEnd; i++)
-            {
-                pixels[i] = bitmap.GetPixel(i % bitmap.Width, i / bitmap.Width);
-            }
         }
 
         /// <summary>
