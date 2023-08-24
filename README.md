@@ -19,7 +19,8 @@ This converts the block to the frequency domain and the DCT coefficients can be 
 - Huffman coding (compression step): Use huffman coding to compress the block of image data in zig-zag order as per the JPEG standard.  
 <div align="center">
     <img src="assets/zigZagPattern.png" alt="visualization of the zig-zag pattern" width="200"/>
-</div>
+</div>  
+
 - The image is saved in jpg format and can be opened by any image viewer.  
 
 With the dafault quality setting Q=50 it takes around 14 bytes of jpeg data to hide 1 byte of file data. The quality can be changed by the user. With lower qualities there may be some noticeable artifacts in the image.
