@@ -18,6 +18,12 @@ namespace Steganography
             JPEGExtractor extractor = new JPEGExtractor(imagePath);
             extractor.ExtractFile();
         }
+
+        /// <summary>
+        /// Simple computation of forward discrete cosine transform based on the explicit formula.
+        /// </summary>
+        /// <param name="block">8x8 block (unshifted)</param>
+        /// <returns>dct coefficients of the block in natural (line-by-line) order</returns>
         public static int[] DCT2(int[] block)
         {
             double alpha(int u) => (u == 0) ? 1 / Math.Sqrt(2) : 1;
@@ -42,8 +48,17 @@ namespace Steganography
             return dct;
         }
 
+        /// <summary>
+        /// Fast implementation of forward discrete cosine transform. 
+        /// </summary>
+        /// <param name="b">8x8 block (unshifted)</param>
+        /// <returns>dct coefficients of the block in natural (line-by-line) order</returns>
+        /// <remarks>
+        /// Source: http://www.ijg.org/files/jpegsrc.v8c.tar.gz
+        /// </remarks>
         public static int[] fdctint(int[] b)
         {
+            // trigonometric constants in fixed point
             const int fix_0_298631336 = 2446;
             const int fix_0_390180644 = 3196;
             const int fix_0_541196100 = 4433;
@@ -61,6 +76,7 @@ namespace Steganography
             const int pass1Bits     = 2;
             const int centerJSample = 128;
 
+            // process rows
             for (int y = 0; y < 8; y++)
             {
                 int x0 = b[y*8+0];
@@ -117,6 +133,7 @@ namespace Steganography
 		        b[y*8+7] = (tmp3 + tmp10 + tmp13) >> (constBits - pass1Bits);
             }
 
+            // process columns
             for (int x = 0; x < 8; x++) {
                 int tmp0 = b[0*8+x] + b[7*8+x];
                 int tmp1 = b[1*8+x] + b[6*8+x];
@@ -194,8 +211,14 @@ namespace Steganography
         private string? outImagePath;
 
         /// <summary>
-        /// Creates a JStegImage object from a jpeg image file and computes DCT coefficients of the image,
-        /// which are used in the jpeg encoding process and can be used to hide data in the image.
+        /// Creates a JStegImage object from a jpeg image file. <br/>
+        /// Computes DCT coefficients of the image, which are used in the jpeg encoding
+        /// process and can be used to hide data in the image.  <br/>
+        /// JSteg algorithm:<br/>
+        ///    1. Compute DCT coefficients for all 8x8 blocks in the image. <br/>
+        ///    2. Hide the data in the least-significant bits of AC coefficients of the DCT, 
+        ///         whose abs. value is greater than 1. <br/>
+        ///    3. Save the image in the jpeg format. <br/>
         /// </summary>
         /// <param name="imagePath"></param>
         public JStegImage(string imagePath, int quality=50, string? outImagePath=null)
@@ -330,16 +353,22 @@ namespace Steganography
             int blocksCount = blocksWidth * blocksHeight;
             int threadsCount = Environment.ProcessorCount;
             int blocksPerThread = blocksCount / threadsCount;
-            Parallel.For(0, threadsCount, i => {
+
+            Task[] tasks = new Task[threadsCount];
+            for (int i = 0; i < threadsCount; i++)
+            {
                 int startBlock = i * blocksPerThread;
                 int endBlock = (i == threadsCount - 1) ? blocksCount : (i + 1) * blocksPerThread;
-                for (int block = startBlock; block < endBlock; block++)
-                {
-                    int x = block % blocksWidth * blockSize; 
-                    int y = block / blocksWidth * blockSize;
-                    GetDCTCoeffs(x, y);
-                }
-            });
+                tasks[i] = Task.Run(() => {
+                    for (int block = startBlock; block < endBlock; block++)
+                    {
+                        int x = block % blocksWidth * blockSize; 
+                        int y = block / blocksWidth * blockSize;
+                        GetDCTCoeffs(x, y);
+                    }
+                });
+            }
+            Task.WaitAll(tasks);
         }
         
         /// <summary>
