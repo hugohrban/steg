@@ -30,11 +30,11 @@ The program can be run using `dotnet run` which compiles the code and runs it, o
 Descriptions of available commands and their arguments are listed below.
 ### Hide
 The hide command performs the embedding of a message into an image. It takes a method, input file to be hidden, cover image and, optionally, an output image path or a qualiy setting in case of `jsteg` or bits per byte in case of `lsb` method. Note, that the order of optional parameters does not matter and is inferred by the program. If no output image path is specified, the steganographic image is saved in current directory with its original name prepended by "steg_".  
-Semantics:
+**Semantics**:
 ```
 hide <method> <input_file> <cover_image> [<output_image>] [<quality/bits_per_byte>]
 ```
-Examples:
+**Examples**:
 
 Hide a simple text file in an image using the jsteg method with default quality setting and save it in the examples directory:
 ```
@@ -47,12 +47,12 @@ dotnet run hide lsb examples/secret.txt examples/nature.jpg examples/lsb_steg_na
 ```
 
 ### Extract
-The extract command performs the extraction of a message from an image. It takes a method and a steganographic image. The extracted file is saved with its original name in the current directory prepended with "extr_".
-Semantics:
+The extract command performs the extraction of a message from an image. It takes a method and a steganographic image. The extracted file is saved with its original name in the current directory prepended with "extr_".  
+**Semantics**:
 ```
 extract <method> <steg_image>
 ```
-Examples:
+**Examples**:
 
 Extract a hidden file from an image of a forest using the jsteg method: (the extracted file is a text file containing a message)
 ```
@@ -65,12 +65,12 @@ dotnet run extract lsb examples/flowers.png
 ```
 
 ### Capacity
-Prints the capacities (maximum size of a hidden file) that can be hidden in the image using the specified method and various quality settings (for jsteg) or bits per byte (for lsb). The capacities are printed in bytes and kilobytes.
-Semantics:
+Prints the capacities (maximum size of a hidden file) that can be hidden in the image using the specified method and various quality settings (for jsteg) or bits per byte (for lsb). The capacities are printed in bytes and kilobytes.  
+**Semantics**:
 ```
 capacity <method> <image>
 ```
-Examples:
+**Examples**:
 ```
 dotnet run capacity jsteg examples/flowers.png
 ```
@@ -79,12 +79,12 @@ dotnet run capacity lsb examples/forest.jpg
 ```
 
 ### Compress
-Compress the provided image using jpeg compression with provided quality setting (0 < Q <= 100) and and save it.
-Semantics:
+Compress the provided image using jpeg compression with provided quality setting (0 < Q <= 100) and and save it.  
+**Semantics**:
 ```
 compress <input_image> <output_image> <quality>
 ```
-Examples:
+**Examples**:
 
 Compressing the same image with different quality settings 50 and 5:
 ```
