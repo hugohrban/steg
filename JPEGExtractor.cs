@@ -54,6 +54,7 @@ namespace Steganography
             using (BinaryWriter writer = new BinaryWriter(File.Open("extr_" + extractedFileName, FileMode.Create)))
             {
                 writer.Write(data.ToArray(), 15 + extractedFileNameLength + 4, dataLength);
+                System.Console.WriteLine("File saved as: " + "extr_" + extractedFileName);
             }
         }
 
@@ -144,7 +145,7 @@ namespace Steganography
             if (data.Count == 15)
             {
                 extractedFileNameLength = data[14];
-                System.Console.WriteLine("filename length: " + extractedFileNameLength);
+                System.Console.WriteLine("filename length in bytes: " + extractedFileNameLength);
                 return false;
             }
 
@@ -174,7 +175,7 @@ namespace Steganography
             // get file data is extracted
             if (data.Count == 15 + extractedFileNameLength + 4 + dataLength)
             {
-                System.Console.WriteLine("all file data extracted");
+                System.Console.WriteLine("all file data extracted.");
                 return true;
             }
             return false;
