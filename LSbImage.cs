@@ -31,11 +31,7 @@ namespace Steganography
                 
                 this.bitsPerByte = bitsPerByte;
                 this.outImagePath = outImagePath;
-                if (this.outImagePath is not null)
-                {
-                    this.outImagePath = Path.GetFileNameWithoutExtension(this.outImagePath);
-                    System.Console.WriteLine(this.outImagePath);
-                }
+
                 if (bitsPerByte < 1 || bitsPerByte > 8)
                 {
                     throw new Exception("invalid bitsPerByte value. Must be between 1 and 8.");
@@ -154,9 +150,9 @@ namespace Steganography
                 int y = i / stegImage.Width;
                 stegImage.SetPixel(x, y, pixels[i]);
             }
-            string stegImageName = (outImagePath is not null) ? outImagePath : ("steg_" + Path.GetFileNameWithoutExtension(imgPath));
-            stegImage.Save(stegImageName + ".png", ImageFormat.Png);
-            System.Console.WriteLine($"Writing done. Image saved as {stegImageName}.png");
+            string stegImageName = (outImagePath is not null) ? outImagePath : ("steg_" + Path.GetFileNameWithoutExtension(imgPath) + ".png");
+            stegImage.Save(stegImageName, ImageFormat.Png);
+            System.Console.WriteLine($"Writing done. Image saved as {stegImageName}");
         }
 
         private void HideArrayTask(byte[] arr, int dataStartIndex, int dataEndIndex)

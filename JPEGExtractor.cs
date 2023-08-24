@@ -134,7 +134,7 @@ namespace Steganography
                 {
                     if (data[i] != HiddenFile.magicNumber[i])
                     {
-                        throw new ArgumentException("Invalid file format");
+                        throw new Exception("Magic number not found. Invalid file format.");
                     }
                 }
                 System.Console.WriteLine("magic number ok");
