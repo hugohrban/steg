@@ -16,7 +16,10 @@ This converts the block to the frequency domain and the DCT coefficients can be 
 
 - Quantization (lossy step): The DCT coefficients are then quantized using a quantization table (elementwise division of 8x8 matrices). Many of the high-frequency coefficients will be zero, which means they can be efficiently compressed by huffman coding. The quantization table is chosen to be the same as the one used in the JPEG standard and can be scaled to achieve different compression ratios.
 - **Steganographic step:** Hide the file data in the non-zero-or-one AC coefficients.
-- Huffman coding (compression step): Use huffman coding to compress the block of image data in zig-zag order as per the JPEG standard. 
+- Huffman coding (compression step): Use huffman coding to compress the block of image data in zig-zag order as per the JPEG standard.  
+<div align="center">
+    <img src="assets/zigZagPattern.png" alt="visualization of the zig-zag pattern" width="200"/>
+</div>
 - The image is saved in jpg format and can be opened by any image viewer.  
 
 With the dafault quality setting Q=50 it takes around 14 bytes of jpeg data to hide 1 byte of file data. The quality can be changed by the user. With lower qualities there may be some noticeable artifacts in the image.
