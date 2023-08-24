@@ -23,7 +23,7 @@ namespace Steganography
             using (Bitmap coverImage = new Bitmap(imgPath))
             {
                 this.imgPath = Path.GetFileName(imgPath);
-                this.pixels = GetPixels(coverImage);
+                GetPixels(coverImage);
                 this.width = coverImage.Width;
                 this.height = coverImage.Height;
                 this.bitsPerByte = bitsPerByte;
@@ -33,78 +33,60 @@ namespace Steganography
                     this.outImagePath = Path.GetFileNameWithoutExtension(this.outImagePath);
                     System.Console.WriteLine(this.outImagePath);
                 }
+                if (bitsPerByte < 1 || bitsPerByte > 8)
+                {
+                    throw new Exception("invalid bitsPerByte value. Must be between 1 and 8.");
+                }
             }
         }
 
         /// <summary>
-        /// Hide a hiffenFile object in the least-significant bits of pixels of the image
+        /// Hide a hiffenFile object in the least-significant bits of pixels of the image and save it to disk.
         /// </summary>
         /// <param name="hf"></param>
         /// <exception cref="InvalidDataException"></exception>
         public void Hide(string filePath)
         {
             HiddenFile hf = new HiddenFile(filePath, bitsPerByte);
-
-            int bufferMask = 1;
-            int dataIx = 0;
-            byte buffer = hf.data[dataIx];
-            bool bit;
-            int bitMask;
-
-            System.Console.WriteLine($"Hiding file {hf.fileName} in image {Path.GetFileName(imgPath)}...");
-
-            // cycle through all pixels 
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                // cycle through all color channels ARGB
-                for (int j = 0; j < 4; j++)
-                {
-                    // set the k least significant bits
-                    for (int k = 0; k < hf.bitsPerByte; k++)
-                    {
-                        // get current bit to be written from hf data
-                        bit = (buffer & bufferMask) != 0;
-                        // set mask to corresponding position in current color channel and k'th LS-bit
-                        bitMask = 1 << (8 * j + k);
-                        // set the bit in pixel to the value from data
-                        if (bit)
-                        {
-                            pixels[i] = Color.FromArgb(pixels[i].ToArgb() | bitMask);
-                        }
-                        else
-                        {
-                            pixels[i] = Color.FromArgb(pixels[i].ToArgb() & (~bitMask));
-                        }
-
-                        bufferMask <<= 1;
-
-                        // if we wrote the whole buffer, load the next byte of data from hf into buffer
-                        if (bufferMask >= 0x100)
-                        {
-                            bufferMask = 1;
-                            dataIx++;
-                            if (dataIx >= hf.data.Length)
-                            {
-                                System.Console.WriteLine("Hiding done.");
-                                Write();
-                                return;
-                            }
-                            buffer = hf.data[dataIx];
-                        }
-
-                        // first 13 bytes of hf are written in 1 bitPerByte encoding
-                        if (dataIx <= 13)
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-            if (dataIx < hf.data.Length - 1)
+            byte[] arr = hf.data;
+            
+            if (arr.Length > pixels.Length * 4 * bitsPerByte / 8)
             {
                 throw new InvalidDataException("The image is too small to be able to contain the hidden file. Try higher bitsPerByte value or a larger image.");
             }
-            System.Console.WriteLine("Hiding done.");
+
+            if (bitsPerByte > 1)
+            {
+                // hide array single-threaded
+                HideArrayTask(hf.data, 0, hf.data.Length);
+            }
+            else
+            {
+                // hiding array in 1 bit per byte encoding in parallel
+                int threadCount = Environment.ProcessorCount;
+                int chunkSize = arr.Length / threadCount;
+
+                // start/end indices for which portion of arr each thread will hide
+                int start = 0;
+                int end = 0;
+                Task[] tasks = new Task[threadCount];
+
+                for (int i = 0; i < threadCount; i++)
+                {
+                    start = end;
+                    end = start + chunkSize;
+                    if (i == threadCount - 1)
+                    {
+                        end = arr.Length;
+                    }
+                    int localStart = start;
+                    int localEnd = end;
+                    tasks[i] = Task.Run(() => HideArrayTask(arr, localStart, localEnd));
+                }
+
+                // Wait for all tasks to finish
+                Task.WaitAll(tasks);
+            }
             Write();
         }
 
@@ -121,24 +103,42 @@ namespace Steganography
                 int nBits = nPixels * nChannels * i;
                 int nBytes = nBits / 8;
                 int nKBytes = nBytes / 1024;
-                Console.WriteLine($"bitsPerByte: {i}, capacity: {nBits} bits = {nBytes} B = {nKBytes} kB");
+                Console.WriteLine($"bitsPerByte: {i}, capacity: {nBytes} B = {nKBytes} kB");
             }
         }
 
         /// <summary>
         /// Get all pixels from a bitmap as an array of Color objects, line by line
         /// </summary>
-        private Color[] GetPixels(Bitmap bitmap)
+        private void GetPixels(Bitmap bitmap)
         {
-            Color[] pixels = new Color[bitmap.Width * bitmap.Height];
-            for (int i = 0; i < bitmap.Height; i++)
+            pixels = new Color[bitmap.Width * bitmap.Height];
+            int threadCount = Environment.ProcessorCount;
+            int chunkSize = pixels.Length / threadCount;
+            int start = 0;
+            int end = 0;
+            Task[] tasks = new Task[threadCount];
+            for (int i = 0; i < threadCount; i++)
             {
-                for (int j = 0; j < bitmap.Width; j++)
+                start = end;
+                end = start + chunkSize;
+                if (i == threadCount - 1)
                 {
-                    pixels[i * bitmap.Width + j] = bitmap.GetPixel(j, i);
+                    end = pixels.Length;
                 }
+                int localStart = start;
+                int localEnd = end;
+                tasks[i] = Task.Run(() => GetPixelsTask(bitmap, localStart, localEnd));
             }
-            return pixels;
+            Task.WaitAll(tasks);
+        }
+
+        private void GetPixelsTask(Bitmap bitmap, int localStart, int localEnd)
+        {
+            for (int i = localStart; i < localEnd; i++)
+            {
+                pixels[i] = bitmap.GetPixel(i % bitmap.Width, i / bitmap.Width);
+            }
         }
 
         /// <summary>
@@ -159,14 +159,74 @@ namespace Steganography
             System.Console.WriteLine($"Writing done. Image saved as {stegImageName}.png");
         }
 
-        private void HideArray(byte[] arr, int bitsPerByte)
+        private void HideArrayTask(byte[] arr, int dataStartIndex, int dataEndIndex)
         {
-            // TODO multithreading when hiding and bitsPerByte == 1
+            byte bufferMask = 1;
+            int dataIx = dataStartIndex;
+            byte buffer = arr[dataIx];
+            bool bit;
+            int bitMask;
+            int startPixel = dataStartIndex;
+            int endPixel = pixels.Length;
+            if (bitsPerByte == 1)
+            {
+                // 1 byte of data is stored in every 2 pixels
+                startPixel = 2 * dataStartIndex;
+                endPixel = 2 * dataEndIndex;
+            }
+        
+            // cycle through pixels
+            for (int i = startPixel; i < endPixel; i++)
+            {
+                // cycle through all color channels ARGB
+                for (int j = 0; j < 4; j++)
+                {
+                    // set the k least significant bits
+                    for (int k = 0; k < bitsPerByte; k++)
+                    {
+                        // get current bit to be written from hf data
+                        bit = (buffer & bufferMask) != 0;
+                        // set mask to corresponding position in current color channel and k'th LS-bit
+                        bitMask = 1 << (8 * j + k);
+                        // set the bit in pixel to the value from data
+                        
+                        if (bit)
+                        {
+                            pixels[i] = Color.FromArgb(pixels[i].ToArgb() | bitMask);
+                        }
+                        else
+                        {
+                            pixels[i] = Color.FromArgb(pixels[i].ToArgb() & (~bitMask));
+                        }
+                        
+                        bufferMask <<= 1;
+
+                        // if we wrote the whole buffer, load the next byte of data from hf into buffer
+                        if (bufferMask == 0x00)
+                        {
+                            bufferMask = 1;
+                            dataIx++;
+                            if (dataIx >= dataEndIndex)
+                            {
+                                return;
+                            }
+                            buffer = arr[dataIx];
+                        }
+
+                        // first 14 bytes are save using 1 bpB encoding
+                        if (dataIx <= 13)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+            if (dataIx < dataEndIndex)
+            {
+                throw new Exception("Could not hide all data in the image. Probably not a valid steg image.");
+            }
         }
 
-        /// <summary>
-        /// Write the extracted file to disk.
-        /// </summary>
         private static void WriteExtractedFile(byte[] data, string fileName)
         {
             using (var stream = File.Open("extr_" + fileName, FileMode.Create))
