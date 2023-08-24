@@ -88,9 +88,9 @@ compress <input_image> <output_image> <quality>
 
 Compressing the same image with different quality settings 50 and 5:
 ```
-dotnet run compress examples/flowers.jpg examples/compressed_flowers_50.jpg 50
+dotnet run compress examples/flowers.png examples/compressed_flowers_50.jpg 50
 ```
 ```
-dotnet run compress examples/flowers.jpg examples/compressed_flowers_5.jpg 5
+dotnet run compress examples/flowers.png examples/compressed_flowers_5.jpg 5
 ```
 
