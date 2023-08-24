@@ -16,6 +16,7 @@ namespace Steganography
         public static void Extract(string imagePath)
         {
             JPEGExtractor extractor = new JPEGExtractor(imagePath);
+            System.Console.WriteLine($"Extracting file from {imagePath}...");
             extractor.ExtractFile();
         }
 
@@ -201,7 +202,7 @@ namespace Steganography
         #endregion
 
         private YCbCrColor[,] pixels;
-        private dctCoeffs[,] quantized;
+        private dctCoeffs[,] dctCoefficients;
         public byte[] hfData {get; private set;}
         public int height {get; private set;}
         public int width {get; private set;}
@@ -228,13 +229,26 @@ namespace Steganography
                 width = coverImage.Width / blockSize * blockSize;
                 height = coverImage.Height / blockSize * blockSize;
                 pixels = new YCbCrColor[height, width];
-                for (int i = 0; i < height; i++)
+                
+                // parallelized conversion from RGB to YCbCr
+                int threadCount = Environment.ProcessorCount;
+                int rowsPerThread = height / threadCount;
+                Task[] tasks = new Task[threadCount];
+                for (int i = 0; i < threadCount; i++)
                 {
-                    for (int j = 0; j < width; j++)
-                    {
-                        pixels[i,j] = RGBtoYCbCr(coverImage.GetPixel(j, i));
-                    }
+                    int startRow = i * rowsPerThread;
+                    int endRow = (i == threadCount - 1) ? height : (i + 1) * rowsPerThread;
+                    tasks[i] = Task.Run(() => {
+                        for (int row = startRow; row < endRow; row++)
+                        {
+                            for (int col = 0; col < width; col++)
+                            {
+                                pixels[row, col] = RGBtoYCbCr(coverImage.GetPixel(col, row));
+                            }
+                        }
+                    });
                 }
+                Task.WaitAll(tasks);
             }
             
             this.imagePath = imagePath;
@@ -242,8 +256,8 @@ namespace Steganography
             this.quality = quality;
             this.outImagePath = outImagePath;
 
-            quantized = new dctCoeffs[width, height];
-            ComputeQuantizationParallel();
+            dctCoefficients = new dctCoeffs[width, height];
+            ComputeDCTParallel();
         }
 
         /// <summary>
@@ -252,6 +266,7 @@ namespace Steganography
         /// <param name="hiddenFile"></param>
         public void Hide(string filePath)
         {
+            System.Console.WriteLine($"Hiding file {filePath} in {imagePath}");
             HiddenFile hiddenFile = new HiddenFile(filePath);
             hfData = hiddenFile.data;
             string stegImagePath = (outImagePath is not null) ? outImagePath : "steg_" + Path.GetFileName(imagePath);
@@ -270,7 +285,7 @@ namespace Steganography
             int[] capacitiesBits = new int[20];
             Parallel.For(0, 20, i => {
                 JPEGWriter writer = new JPEGWriter(null, 100 - i * 5);
-                writer.WriteSOSScanData(quantized, false);
+                writer.WriteSOSScanData(dctCoefficients, false);
                 capacitiesBits[i] = writer.capacityCounter;
                 writer.FlushAndClose();
                 writer.Dispose();
@@ -289,7 +304,7 @@ namespace Steganography
             // for (int Q = 100; Q > 0; Q -= 5)
             // {
             //     writer = new JPEGWriter(null, Q);
-            //     writer.WriteSOSScanData(quantized, false);
+            //     writer.WriteSOSScanData(dctCoefficients, false);
             //     int capacityB = writer.capacityCounter / 8;
             //     int capacityKB = capacityB / 1024;
             //     Console.WriteLine($"Capacity using `jsteg` method with Q={Q}: {capacityB} B = {capacityKB} KB");
@@ -323,17 +338,19 @@ namespace Steganography
             writer.WriteSOF0(height, width);
             writer.WriteDHT();
             writer.WriteSOSHeader();
-            writer.WriteSOSScanData(quantized);
+            writer.WriteSOSScanData(dctCoefficients);
             writer.WriteEOI();
             writer.FlushAndClose();
             writer.Dispose();
+            System.Console.WriteLine($"Image written to {outImagePath}");
         }
 
         /// <summary>
         /// Compute DCT coefficients for all 8x8 blocks in the image. (Synchronous version = slow)
         /// </summary>
-        private void ComputeQuantization()
+        private void ComputeDCT()
         {
+            System.Console.WriteLine("Computing DCT coefficients...");
             for (int x = 0; x < width; x += blockSize)
             {
                 for (int y = 0; y < height; y += blockSize)
@@ -341,13 +358,15 @@ namespace Steganography
                     GetDCTCoeffs(x, y);
                 }
             }
+            System.Console.WriteLine("DCT coefficients computed.");
         }
 
         /// <summary>
         /// Compute DCT coefficients for all 8x8 blocks in the image parallelly.
         /// </summary>
-        private void ComputeQuantizationParallel()
+        private void ComputeDCTParallel()
         {
+            System.Console.WriteLine("Computing DCT coefficients...");
             int blocksWidth = width / blockSize;
             int blocksHeight = height / blockSize;
             int blocksCount = blocksWidth * blocksHeight;
@@ -369,6 +388,7 @@ namespace Steganography
                 });
             }
             Task.WaitAll(tasks);
+            System.Console.WriteLine("DCT coefficients computed.");
         }
         
         /// <summary>
@@ -394,23 +414,23 @@ namespace Steganography
             }
 
             // SLOW - directly implementing the DCT equation
-            int[] quantizedY  = DCT2(blockY);
-            int[] quantizedCb = DCT2(blockCb);
-            int[] quantizedCr = DCT2(blockCr);
+            int[] DCT_Y  = DCT2(blockY);
+            int[] DCT_Cb = DCT2(blockCb);
+            int[] DCT_Cr = DCT2(blockCr);
 
             // FAST
-            // int[] quantizedY  = fdctint(blockY);
-            // int[] quantizedCb = fdctint(blockCb);
-            // int[] quantizedCr = fdctint(blockCr);
+            // int[] DCT_Y  = fdctint(blockY);
+            // int[] DCT_Cb = fdctint(blockCb);
+            // int[] DCT_Cr = fdctint(blockCr);
 
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < 8; j++)
                 {
-                    quantized[x+i,y+j] = new dctCoeffs() {
-                        Y  = quantizedY[i * 8 + j],
-                        Cb = quantizedCb[i * 8 + j],
-                        Cr = quantizedCr[i * 8 + j]
+                    dctCoefficients[x+i,y+j] = new dctCoeffs() {
+                        Y  = DCT_Y[i * 8 + j],
+                        Cb = DCT_Cb[i * 8 + j],
+                        Cr = DCT_Cr[i * 8 + j]
                     };
                 }
             }
