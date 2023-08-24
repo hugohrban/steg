@@ -185,6 +185,12 @@ namespace Steganography
             new byte[64]
         };
 
+        /// <summary>
+        /// creates an instance of JPEGWriter which is used to perform jpeg huffman compression on 
+        /// a 2D array of dct coefficients and hide a file in the image
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="quality"></param>
         public JPEGWriter(string? path=null, int quality=50)
         {
             if (path == null)
@@ -234,8 +240,8 @@ namespace Steganography
             }
         }
 
-        // write the nBits least-significant of bits to the stream. Assuming nBits <= 16
-        public void Emit(uint bits, int nBits)
+        /// write the nBits least-significant of bits to the stream. Assuming nBits <= 16
+        private void Emit(uint bits, int nBits)
         {
             this.nBits += nBits;
             bits <<= (32 - this.nBits);
@@ -254,18 +260,16 @@ namespace Steganography
             }
         }
 
-        // write the huffman code for a given symbol to the stream
-        public void EmitHuff(HuffmanLookup lookup, int symbol)
+        // write the huffman code for a given symbol to the stream using compiled huffman lookup table
+        private void EmitHuff(HuffmanLookup lookup, int symbol)
         {
             int code = lookup.huffmanCodes[symbol];
             int nBits = code >> 24;
-            // uint bits = (uint)(code & ((1 << 24) - 1));
             Emit((uint)code, nBits);
-            //System.Console.WriteLine("HUFF: " + symbol + " " + nBits + " " + (code & ((1 << 24) - 1)));
         }
 
         // write the huffman code for a run of `runLength` zeros and the number of bits of the next symbol and the symbol itself
-        public void EmitHuffRLE(HuffmanLookup lookup, int symbol, int runLength)
+        private void EmitHuffRLE(HuffmanLookup lookup, int symbol, int runLength)
         {
             int a = symbol;
             int b = symbol;
@@ -282,7 +286,16 @@ namespace Steganography
             }
         }
 
-        public int WriteBlock(int[,] block, int component, int prevDC, bool writingMode=true)
+        /// <summary>
+        /// perform quantization, zig-zag reordering and huffman encoding of a block of dct coefficients and write it to the stream.
+        /// <br/>Is also used as a mock writer when calculating capacity
+        /// </summary>
+        /// <param name="block">2D array of unquantized  coefficients</param>
+        /// <param name="component">luminance or chrominance</param>
+        /// <param name="prevDC">DC coefficient of prevois block. We code their difference.</param>
+        /// <param name="writingMode">if False, we are calculating capacity</param>
+        /// <returns>DC coefficient of the block which is used in the next block</returns>
+        private int WriteBlock(int[,] block, int component, int prevDC, bool writingMode=true)
         {
             int dc = (int)Math.Round(block[0, 0] / (QTables[component][0] * 1.0));
             if (writingMode)
@@ -357,13 +370,11 @@ namespace Steganography
             return dc;
         }
 
-        // write the start of image marker
         public void WriteSOI()
         {
             writer.Write(SOI);
         }
 
-        // write the define quantization table marker and the scaled quantization tables in zig-zag order
         public void WriteDQT()
         {
             writer.Write(DQT);
@@ -442,7 +453,6 @@ namespace Steganography
             }
         }
 
-        // start of scan header
         public void WriteSOSHeader()
         {
             writer.Write(SOS);
@@ -463,29 +473,36 @@ namespace Steganography
             writer.Write((byte)0); // successive approximation bit position
         }
 
-        // huffman-coded scan data or capacity estimation
-        public void WriteSOSScanData(dctCoeffs[,] quantized, bool writingMode=true)
+        /// <summary>
+        /// Write the huffman coded data to stream. <br/>
+        /// Sequentially write the Y, Cb, Cr block of all 8x8 blocks of pixels.<br/>
+        /// If writingMode is False, we are calculating capacity.
+        /// </summary>
+        /// <param name="dctCoefficients">unquantized DCT coefficients of the whole image</param>
+        /// <param name="writingMode">False if calculating capacity</param>
+        /// <exception cref="Exception">thrown if capacity of image is too small to hide the file</exception>
+        public void WriteSOSScanData(dctCoeffs[,] dctCoefficients, bool writingMode=true)
         {
             dctCoeffs prevDC = new dctCoeffs();
-            for (int j = 0; j < quantized.GetLength(1); j += BlockSize)
+            for (int j = 0; j < dctCoefficients.GetLength(1); j += BlockSize)
             {
-                for (int i = 0; i < quantized.GetLength(0); i += BlockSize)
+                for (int i = 0; i < dctCoefficients.GetLength(0); i += BlockSize)
                 {
-                    var quantizedY = new int[BlockSize, BlockSize];
-                    var quantizedCb = new int[BlockSize, BlockSize];
-                    var quantizedCr = new int[BlockSize, BlockSize];
+                    var dctCoefficientsY = new int[BlockSize, BlockSize];
+                    var dctCoefficientsCb = new int[BlockSize, BlockSize];
+                    var dctCoefficientsCr = new int[BlockSize, BlockSize];
                     for (int k = 0; k < BlockSize; k++)
                     {
                         for (int l = 0; l < BlockSize; l++)
                         {
-                            quantizedY[k, l] = quantized[i + k, j + l].Y;
-                            quantizedCb[k, l] = quantized[i + k, j + l].Cb;
-                            quantizedCr[k, l] = quantized[i + k, j + l].Cr;
+                            dctCoefficientsY[k, l] = dctCoefficients[i + k, j + l].Y;
+                            dctCoefficientsCb[k, l] = dctCoefficients[i + k, j + l].Cb;
+                            dctCoefficientsCr[k, l] = dctCoefficients[i + k, j + l].Cr;
                         }
                     }
-                    prevDC.Y  = WriteBlock(quantizedY, 0, prevDC.Y, writingMode);
-                    prevDC.Cb = WriteBlock(quantizedCb, 1, prevDC.Cb, writingMode);
-                    prevDC.Cr = WriteBlock(quantizedCr, 1, prevDC.Cr, writingMode);
+                    prevDC.Y  = WriteBlock(dctCoefficientsY, 0, prevDC.Y, writingMode);
+                    prevDC.Cb = WriteBlock(dctCoefficientsCb, 1, prevDC.Cb, writingMode);
+                    prevDC.Cr = WriteBlock(dctCoefficientsCr, 1, prevDC.Cr, writingMode);
                 }
             }
             if (writingMode)
@@ -498,7 +515,6 @@ namespace Steganography
             }
         }
         
-        // write the end of image marker
         public void WriteEOI()
         {
             writer.Write(EOI);
@@ -517,6 +533,7 @@ namespace Steganography
 
         private void WriteLengthOfMarker(int length)
         {
+            // write the int in big endian as bytes
             writer.Write((byte)(length >> 8));
             writer.Write((byte)length);
         }
