@@ -9,32 +9,37 @@ namespace Steganography
             # region help messages
 
             string helpMessageGeneral = 
-                "Usage: steg <command> [<args>]\n" +
+                "Usage: dotnet run <command> [<args>]\n" +
                 "Steganography tool for hiding arbitrary files in images.\n" +
                 "========================================================\n" +
                 "The available commands are:\n" +
-                "   hide [METHOD] [FILE] [INPUT_IMG] [Q/bpB]\n" +
-                "   extract [METHOD] [IMG]\n" +
-                "   capacity [METHOD] [IMG]\n" +
-                "   compress [INPUT_IMG] [OUTPUT_IMG] [QUALITY]\n" +
-                "   help [command]\n" +
-                "Use help [command] for more information about a command";
+                "   hide METHOD FILE INPUT_IMG [Q/bpB] [OUTPUT_IMG]\n" +
+                "   extract METHOD IMG\n" +
+                "   capacity METHOD IMG\n" +
+                "   compress INPUT_IMG OUTPUT_IMG QUALITY\n" +
+                "   help COMMAND\n" +
+                "Use help COMMAND for more information about a given command.";
 
             string helpMessageHide = 
-                "Usage: steg hide [METHOD] [FILE] [INPUT_IMG] [[Q/bpB] [OUTPUT_IMG]]\n" +
+                "Usage: dotnet run hide METHOD FILE INPUT_IMG [Q/bpB] [OUTPUT_IMG]\n" +
                 "Hide a file in an image.\n" +
                 "=====================================================\n" +
                 "METHOD can be either `jsteg` or `lsb`:\n" +
                 "    - `jsteg` - hides the file data in the DCT coefficients of the jpeg image.\n" +
-                "    - `lsb`   - hides the file data in the least significant bits of the pixels of the image\n" +
+                "    - `lsb`   - hides the file data in the least significant bits of the pixels of the image\n\n" +
                 "FILE             - path to the file to be hidden\n" +
                 "INPUT_IMG        - path to the image to hide the file in\n" +
-                "Q/bpB (optional) - quality of jpeg compression (1-100) or number of least significant bits to change (1-8)" +
-                                    "depending on the METHOD (recommended Q=50)\n" +
-                "OUTPUT_IMG (optional) - path to the output image. If not specified, the input image will be saved with \"steg_\" prefix.";
+                "Q/bpB (optional) - depending on METHOD:\n" +
+                "    - `jsteg` - quality of jpeg compression (1-100) (recommended Q=50)\n" +
+                "    - `lsb`   - number of least significant bits to change (1-8) (recommended bpB=1)\n\n" +
+                "OUTPUT_IMG (optional) - path to the output image. If not specified, the input image will be saved as \"steg_\" + its original name.\n" + 
+                "Examples: dotnet run hide jsteg file.txt input.jpg 50\n" +
+                "          dotnet run hide lsb file.txt input.jpg 1\n" +
+                "          dotnet run hide lsb file.txt input.jpg output.jpg\n" +
+                "          dotnet run hide jsteg file.txt input.jpg output.jpg 20";
 
             string helpMessageExtract = 
-                "Usage: steg extract [METHOD] [IMG]\n" +
+                "Usage: steg extract METHOD IMG\n" +
                 "Extract a file from an image.\n" +
                 "==================================\n" +
                 "METHOD - either `jsteg` or `lsb`\n" +
@@ -42,14 +47,14 @@ namespace Steganography
                 "The file will be saved in the current directory as 'extr_' + its original name.";
 
             string helpMessageCapacity = 
-                "Usage: steg capacity [METHOD] [IMG]\n" +
+                "Usage: steg capacity METHOD IMG\n" +
                 "Print the capacity of the image (size of file that can be hidden) for various settings of METHOD\n" +
                 "================================================================================================\n" +
                 "METHOD - either `jsteg` or `lsb`\n" +
                 "IMG    - the path to the image to determine the capacity of";
 
             string helpMessageCompress = 
-                "Usage: steg compress [INPUT_IMG] [OUTPUT_IMG] [QUALITY]\n" +
+                "Usage: steg compress INPUT_IMG OUTPUT_IMG QUALITY\n" +
                 "Compress an image using jpeg compression.\n" +
                 "=======================================================\n" +
                 "INPUT_IMG  - path to the image to be compressed\n" +
@@ -57,10 +62,10 @@ namespace Steganography
                 "QUALITY    - quality of jpeg compression (1-100)";
 
             string helpMessageHelp = 
-                "Usage: steg help [command]\n" +
+                "Usage: steg help COMMAND\n" +
                 "Print help message for a command.\n" +
                 "=================================\n" +
-                "command - the command to print help for (hide, extract, capacity, compress, help)\n";
+                "COMMAND - the command to print help for (hide, extract, capacity, compress, help)\n";
             
             # endregion
     
