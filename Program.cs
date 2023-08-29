@@ -40,7 +40,7 @@ namespace Steganography
                 "          dotnet run hide jsteg file.txt input.jpg output.jpg 20";
 
             string helpMessageExtract = 
-                "Usage: steg extract METHOD IMG\n" +
+                "Usage: dotnet run extract METHOD IMG\n" +
                 "Extract a file from an image.\n" +
                 "==================================\n" +
                 "METHOD - either `jsteg` or `lsb`\n" +
@@ -48,14 +48,14 @@ namespace Steganography
                 "The file will be saved in the current directory as 'extr_' + its original name.";
 
             string helpMessageCapacity = 
-                "Usage: steg capacity METHOD IMG\n" +
+                "Usage: dotnet run capacity METHOD IMG\n" +
                 "Print the capacity of the image (size of file that can be hidden) for various settings of METHOD\n" +
                 "================================================================================================\n" +
                 "METHOD - either `jsteg` or `lsb`\n" +
                 "IMG    - the path to the image to determine the capacity of";
 
             string helpMessageCompress = 
-                "Usage: steg compress INPUT_IMG OUTPUT_IMG QUALITY\n" +
+                "Usage: dotnet run compress INPUT_IMG OUTPUT_IMG QUALITY\n" +
                 "Compress an image using jpeg compression.\n" +
                 "=======================================================\n" +
                 "INPUT_IMG  - path to the image to be compressed\n" +
@@ -63,7 +63,7 @@ namespace Steganography
                 "QUALITY    - quality of jpeg compression (1-100)";
 
             string helpMessageHelp = 
-                "Usage: steg help COMMAND\n" +
+                "Usage: dotnet run help COMMAND\n" +
                 "Print help message for a command.\n" +
                 "=================================\n" +
                 "COMMAND - the command to print help for (hide, extract, capacity, compress, help)\n";

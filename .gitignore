@@ -4,6 +4,7 @@
 *.png
 !examples/*.png
 !examples/*.jpg
+!assets/*.png
 bin/
 obj/
 .vscode/
